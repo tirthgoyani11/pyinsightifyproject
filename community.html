@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Insightify Community - Honest product discussions from real users">
+  <title>Community - Insightify</title>
+  
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/community.css">
+  <link rel="stylesheet" href="css/loading.css">
+</head>
+<body>
+  
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <div class="nav-content">
+        <a href="index.html" class="logo">
+          <span class="logo-icon">💡</span>
+          <span class="logo-text">Insightify</span>
+        </a>
+        
+        <ul class="nav-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="browse.html">Browse</a></li>
+          <li><a href="submit.html">Analyze Product</a></li>
+          <li><a href="community.html" class="active">Community</a></li>
+          <li><a href="compare.html">Compare</a></li>
+        </ul>
+        
+        <!-- Auth Buttons (shown when not logged in) -->
+        <div id="authButtons" style="display: flex; gap: var(--space-3); align-items: center;">
+          <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+          <a href="register.html" class="btn btn-primary btn-sm">Sign Up</a>
+        </div>
+        
+        <!-- User Menu (shown when logged in) -->
+        <div id="userMenu" style="display: none; position: relative;">
+          <button class="btn btn-primary btn-sm" id="createPostBtn" style="margin-right: var(--space-3);">Create Post</button>
+          <button class="user-menu-trigger" id="userMenuTrigger" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); transition: background 0.2s;">
+            <div id="userAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;">U</div>
+            <span id="userDisplay" style="font-weight: 500; color: var(--color-text);">User</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          
+          <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: var(--space-2); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
+            <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border);">
+              <div style="font-weight: 600; color: var(--color-text);" id="dropdownUsername">User</div>
+              <div style="font-size: var(--text-sm); color: var(--color-text-secondary);" id="dropdownEmail">user@example.com</div>
+            </div>
+            <a href="profile.html" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-text); text-decoration: none; transition: background 0.2s;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Profile
+            </a>
+            <button id="logoutBtn" style="width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-danger); background: none; border: none; border-top: 1px solid var(--color-border); cursor: pointer; transition: background 0.2s; text-align: left;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+        
+        <button class="mobile-menu-toggle" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Community Header -->
+  <section class="community-header">
+    <div class="container">
+      <h1>Community Discussions</h1>
+      <p class="community-tagline">
+        Real reviews from real users. No bias, no incentives—just honest experiences.
+      </p>
+    </div>
+  </section>
+  
+  <!-- Main Community Feed -->
+  <section class="section">
+    <div class="container">
+      
+      <div class="community-layout">
+        
+        <!-- Sidebar -->
+        <aside class="community-sidebar">
+          
+          <!-- Filters -->
+          <div class="card sidebar-card">
+            <h3 class="card-title">Sort By</h3>
+            <div class="filter-list">
+              <button class="filter-btn active" data-sort="hot">
+                🔥 Hot
+              </button>
+              <button class="filter-btn" data-sort="new">
+                ✨ New
+              </button>
+              <button class="filter-btn" data-sort="top">
+                ⭐ Top
+              </button>
+              <button class="filter-btn" data-sort="trending">
+                📈 Trending
+              </button>
+            </div>
+          </div>
+          
+          <!-- Categories -->
+          <div class="card sidebar-card">
+            <h3 class="card-title">Categories</h3>
+            <div class="category-list">
+              <a href="#" class="category-item">
+                <span class="category-icon">📱</span>
+                <span class="category-name">Smartphones</span>
+                <span class="category-count">1,234</span>
+              </a>
+              <a href="#" class="category-item">
+                <span class="category-icon">💻</span>
+                <span class="category-name">Laptops</span>
+                <span class="category-count">892</span>
+              </a>
+              <a href="#" class="category-item">
+                <span class="category-icon">🎧</span>
+                <span class="category-name">Audio</span>
+                <span class="category-count">645</span>
+              </a>
+              <a href="#" class="category-item">
+                <span class="category-icon">📷</span>
+                <span class="category-name">Cameras</span>
+                <span class="category-count">423</span>
+              </a>
+              <a href="#" class="category-item">
+                <span class="category-icon">⌚</span>
+                <span class="category-name">Wearables</span>
+                <span class="category-count">312</span>
+              </a>
+              <a href="#" class="category-item">
+                <span class="category-icon">🏠</span>
+                <span class="category-name">Home Tech</span>
+                <span class="category-count">567</span>
+              </a>
+            </div>
+          </div>
+          
+          <!-- Community Stats -->
+          <div class="card sidebar-card">
+            <h3 class="card-title">Community Stats</h3>
+            <div class="stat-list" id="communityStats">
+              <div class="stat-row">
+                <span class="stat-label">Loading...</span>
+                <span class="stat-value">...</span>
+              </div>
+            </div>
+          </div>
+          
+        </aside>
+        
+        <!-- Main Feed -->
+        <main class="community-feed">
+          
+          <!-- Search Bar -->
+          <div class="card search-card">
+            <div class="search-wrapper">
+              <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input 
+                type="text" 
+                class="input input-search" 
+                placeholder="Search discussions..."
+                id="communitySearch"
+              >
+            </div>
+          </div>
+          
+          <!-- Post List -->
+          <div class="posts-list" id="postsContainer">
+            <!-- Posts will be loaded dynamically via JavaScript -->
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+              <p>Loading posts...</p>
+            </div>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="pagination" id="paginationContainer">
+            <button class="btn btn-secondary" id="prevPageBtn">← Previous</button>
+            <span class="pagination-info" id="pageInfo">Loading...</span>
+            <button class="btn btn-secondary" id="nextPageBtn">Next →</button>
+          </div>
+          
+        </main>
+        
+      </div>
+      
+    </div>
+  </section>
+  
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <span class="logo-text">Insightify</span>
+          </div>
+          <p class="footer-tagline">Making product research simple and unbiased.</p>
+        </div>
+        
+        <div class="footer-links">
+          <div class="footer-column">
+            <h4>Product</h4>
+            <ul class="list-unstyled">
+              <li><a href="index.html#how-it-works">How It Works</a></li>
+              <li><a href="index.html#features">Features</a></li>
+              <li><a href="#">Pricing</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Community</h4>
+            <ul class="list-unstyled">
+              <li><a href="community.html">Discussion Boards</a></li>
+              <li><a href="#">Guidelines</a></li>
+              <li><a href="#">Verified Users</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Company</h4>
+            <ul class="list-unstyled">
+              <li><a href="#">About Us</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 Insightify. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+  
+  <!-- Create Post Modal -->
+  <div id="createPostModal" class="modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2>Create a New Post</h2>
+        <button class="modal-close" aria-label="Close modal">&times;</button>
+      </div>
+      
+      <form id="createPostForm" class="modal-body">
+        
+        <!-- Product Selection -->
+        <div class="form-group">
+          <label for="postProduct" class="form-label">Link to Product (Optional)</label>
+          <input 
+            type="text" 
+            id="postProduct" 
+            class="input" 
+            placeholder="Paste product URL or search..."
+          >
+          <small class="form-text">Link your post to a specific product for better visibility</small>
+        </div>
+        
+        <!-- Post Title -->
+        <div class="form-group">
+          <label for="postTitle" class="form-label">Title *</label>
+          <input 
+            type="text" 
+            id="postTitle" 
+            class="input" 
+            placeholder="What's your question or experience?"
+            required
+            maxlength="300"
+          >
+          <small class="form-text"><span id="titleCount">0</span>/300 characters</small>
+        </div>
+        
+        <!-- Post Content -->
+        <div class="form-group">
+          <label for="postContent" class="form-label">Description *</label>
+          <textarea 
+            id="postContent" 
+            class="input" 
+            rows="8"
+            placeholder="Share your thoughts, questions, or experiences..."
+            required
+            maxlength="5000"
+          ></textarea>
+          <small class="form-text"><span id="contentCount">0</span>/5000 characters</small>
+        </div>
+        
+        <!-- Category -->
+        <div class="form-group">
+          <label for="postCategory" class="form-label">Category *</label>
+          <select id="postCategory" class="input" required>
+            <option value="">Select a category</option>
+            <option value="smartphones">📱 Smartphones</option>
+            <option value="laptops">💻 Laptops</option>
+            <option value="audio">🎧 Audio</option>
+            <option value="cameras">📷 Cameras</option>
+            <option value="wearables">⌚ Wearables</option>
+            <option value="home-tech">🏠 Home Tech</option>
+            <option value="general">💬 General Discussion</option>
+          </select>
+        </div>
+        
+        <!-- Tags -->
+        <div class="form-group">
+          <label for="postTags" class="form-label">Tags (Optional)</label>
+          <input 
+            type="text" 
+            id="postTags" 
+            class="input" 
+            placeholder="e.g., battery-life, camera-quality, budget-friendly"
+          >
+          <small class="form-text">Separate tags with commas</small>
+        </div>
+        
+        <!-- Submit Buttons -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancelPostBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Post to Community</button>
+        </div>
+        
+      </form>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/community.js"></script>
+  <script>
+    // Initialize authentication UI
+    document.addEventListener('DOMContentLoaded', async () => {
+      await Auth.initializeAuthUI();
+      
+      const user = await Auth.getCurrentUser();
+      if (user) {
+        const dropdownUsername = document.getElementById('dropdownUsername');
+        const dropdownEmail = document.getElementById('dropdownEmail');
+        if (dropdownUsername) dropdownUsername.textContent = user.username;
+        if (dropdownEmail) dropdownEmail.textContent = user.email;
+      }
+      
+      const userMenuTrigger = document.getElementById('userMenuTrigger');
+      const userDropdown = document.getElementById('userDropdown');
+      
+      if (userMenuTrigger && userDropdown) {
+        userMenuTrigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.addEventListener('click', (e) => {
+          if (!userDropdown.contains(e.target) && !userMenuTrigger.contains(e.target)) {
+            userDropdown.style.display = 'none';
+          }
+        });
+      }
+      
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          const result = await Auth.logout();
+          if (result.success) {
+            window.location.href = 'index.html';
+          }
+        });
+      }
+      
+      const userMenuTriggerEl = document.getElementById('userMenuTrigger');
+      if (userMenuTriggerEl) {
+        userMenuTriggerEl.addEventListener('mouseenter', () => {
+          userMenuTriggerEl.style.background = 'var(--color-gray-100)';
+        });
+        userMenuTriggerEl.addEventListener('mouseleave', () => {
+          userMenuTriggerEl.style.background = 'transparent';
+        });
+      }
+      
+      const dropdownLinks = document.querySelectorAll('.user-dropdown a, .user-dropdown button');
+      dropdownLinks.forEach(link => {
+        link.addEventListener('mouseenter', () => {
+          link.style.background = 'var(--color-gray-50)';
+        });
+        link.addEventListener('mouseleave', () => {
+          link.style.background = 'transparent';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

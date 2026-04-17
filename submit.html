@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Submit a product URL for AI-powered analysis">
+  <title>Analyze Product - Insightify</title>
+  
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/loading.css">
+</head>
+<body>
+  
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <div class="nav-content">
+        <a href="index.html" class="logo">
+          <span class="logo-icon">💡</span>
+          <span class="logo-text">Insightify</span>
+        </a>
+        
+        <ul class="nav-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="browse.html">Browse</a></li>
+          <li><a href="submit.html" class="active">Analyze Product</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="compare.html">Compare</a></li>
+        </ul>
+        
+        <!-- Auth Buttons (shown when not logged in) -->
+        <div id="authButtons" style="display: flex; gap: var(--space-3); align-items: center;">
+          <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+          <a href="register.html" class="btn btn-primary btn-sm">Sign Up</a>
+        </div>
+        
+        <!-- User Menu (shown when logged in) -->
+        <div id="userMenu" style="display: none; position: relative;">
+          <button class="user-menu-trigger" id="userMenuTrigger" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); transition: background 0.2s;">
+            <div id="userAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;">U</div>
+            <span id="userDisplay" style="font-weight: 500; color: var(--color-text);">User</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          
+          <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: var(--space-2); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
+            <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border);">
+              <div style="font-weight: 600; color: var(--color-text);" id="dropdownUsername">User</div>
+              <div style="font-size: var(--text-sm); color: var(--color-text-secondary);" id="dropdownEmail">user@example.com</div>
+            </div>
+            <a href="profile.html" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-text); text-decoration: none; transition: background 0.2s;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Profile
+            </a>
+            <button id="logoutBtn" style="width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-danger); background: none; border: none; border-top: 1px solid var(--color-border); cursor: pointer; transition: background 0.2s; text-align: left;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+        
+        <button class="mobile-menu-toggle" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container" style="max-width: 800px;">
+      
+      <!-- Page Header -->
+      <div class="section-header" style="text-align: center; margin-bottom: var(--space-8);">
+        <h1>Analyze a Product</h1>
+        <p class="text-secondary">
+          Paste a product link and get instant insights from thousands of reviews
+        </p>
+      </div>
+      
+      <!-- Submit Form -->
+      <div class="card" style="padding: var(--space-8);">
+        <form id="submitProductForm">
+          
+          <!-- Product URL Input -->
+          <div style="margin-bottom: var(--space-6);">
+            <label for="productUrl" class="form-label">
+              Product URL <span style="color: var(--color-danger);">*</span>
+            </label>
+            <input 
+              type="url" 
+              id="productUrl" 
+              class="input" 
+              placeholder="https://www.amazon.com/product/..."
+              required
+              aria-describedby="urlHelp"
+            >
+            <small id="urlHelp" class="text-secondary">
+              Paste the full URL from Amazon, Flipkart, or other supported retailers
+            </small>
+          </div>
+          
+          <!-- Retailer Selection -->
+          <div style="margin-bottom: var(--space-6);">
+            <label for="retailer" class="form-label">
+              Retailer <span style="color: var(--color-danger);">*</span>
+            </label>
+            <select id="retailer" class="input" required>
+              <option value="">-- Select Retailer --</option>
+              <option value="Amazon">Amazon</option>
+              <option value="Flipkart">Flipkart</option>
+              <option value="Walmart">Walmart</option>
+              <option value="Target">Target</option>
+              <option value="BestBuy">Best Buy</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <!-- Product Name (Optional) -->
+          <div style="margin-bottom: var(--space-6);">
+            <label for="productName" class="form-label">
+              Product Name (Optional)
+            </label>
+            <input 
+              type="text" 
+              id="productName" 
+              class="input" 
+              placeholder="e.g., iPhone 15 Pro"
+            >
+            <small class="text-secondary">
+              We'll try to detect this automatically, but you can specify it for accuracy
+            </small>
+          </div>
+          
+          <!-- Category (Optional) -->
+          <div style="margin-bottom: var(--space-6);">
+            <label for="category" class="form-label">
+              Category (Optional)
+            </label>
+            <select id="category" class="input">
+              <option value="">-- Select Category --</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Home & Kitchen">Home & Kitchen</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Beauty">Beauty & Personal Care</option>
+              <option value="Sports">Sports & Outdoors</option>
+              <option value="Books">Books</option>
+              <option value="Toys">Toys & Games</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <!-- Submit Button -->
+          <div style="display: flex; gap: var(--space-4); margin-top: var(--space-8);">
+            <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn" style="flex: 1;">
+              <span id="analyzeBtnText">Analyze Product</span>
+              <span id="analyzeBtnLoader" style="display: none;">
+                <span class="spinner"></span> Analyzing...
+              </span>
+            </button>
+            <button type="button" class="btn btn-outline" onclick="resetForm()">
+              Clear
+            </button>
+          </div>
+          
+        </form>
+      </div>
+      
+      <!-- Recently Analyzed Products -->
+      <div style="margin-top: var(--space-10);">
+        <h3 style="margin-bottom: var(--space-6);">Recently Analyzed Products</h3>
+        <div id="recentProducts" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--space-4);">
+          <!-- Products will be loaded here -->
+        </div>
+      </div>
+      
+      <!-- Supported Retailers Info -->
+      <div class="card" style="margin-top: var(--space-8); padding: var(--space-6); background: var(--color-background);">
+        <h4 style="margin-bottom: var(--space-4);">Supported Retailers</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4);">
+          <div class="badge badge-outline">🛒 Amazon</div>
+          <div class="badge badge-outline">🛍️ Flipkart</div>
+          <div class="badge badge-outline">🏪 Walmart</div>
+          <div class="badge badge-outline">🎯 Target</div>
+          <div class="badge badge-outline">💻 Best Buy</div>
+          <div class="badge badge-outline">📦 More Coming</div>
+        </div>
+        <p class="text-secondary" style="margin-top: var(--space-4); font-size: 0.875rem;">
+          Don't see your retailer? <a href="#" style="color: var(--color-primary);">Request it here</a>
+        </p>
+      </div>
+      
+    </div>
+  </main>
+  
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; padding: var(--space-8); border-radius: var(--radius-lg); text-align: center; max-width: 400px;">
+      <div class="spinner" style="width: 48px; height: 48px; margin: 0 auto var(--space-4);"></div>
+      <h3>Analyzing Product...</h3>
+      <p class="text-secondary" style="margin-top: var(--space-2);">
+        This may take a few seconds while we process reviews
+      </p>
+      <div id="progressSteps" style="margin-top: var(--space-6); text-align: left;">
+        <div class="progress-step">
+          <span id="step1" class="text-secondary">⏳ Fetching product details...</span>
+        </div>
+        <div class="progress-step" style="margin-top: var(--space-2);">
+          <span id="step2" class="text-secondary">⏳ Collecting reviews...</span>
+        </div>
+        <div class="progress-step" style="margin-top: var(--space-2);">
+          <span id="step3" class="text-secondary">⏳ Analyzing sentiment...</span>
+        </div>
+        <div class="progress-step" style="margin-top: var(--space-2);">
+          <span id="step4" class="text-secondary">⏳ Generating insights...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <span class="logo-text">Insightify</span>
+          </div>
+          <p class="footer-tagline">Making product research simple and unbiased.</p>
+        </div>
+        
+        <div class="footer-links">
+          <div class="footer-column">
+            <h4>Product</h4>
+            <ul class="list-unstyled">
+              <li><a href="index.html">Home</a></li>
+              <li><a href="browse.html">Browse Products</a></li>
+              <li><a href="submit.html">Analyze Product</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Community</h4>
+            <ul class="list-unstyled">
+              <li><a href="community.html">Discussion Boards</a></li>
+              <li><a href="#">Guidelines</a></li>
+              <li><a href="#">FAQ</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Company</h4>
+            <ul class="list-unstyled">
+              <li><a href="#">About Us</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 Insightify. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+  
+  <script src="js/main.js"></script>
+  <script src="js/submit.js"></script>
+  
+  <style>
+    .spinner {
+      border: 3px solid var(--color-background);
+      border-top: 3px solid var(--color-primary);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .progress-step span {
+      transition: all 0.3s ease;
+    }
+    
+    .progress-step span.completed {
+      color: var(--color-success) !important;
+    }
+    
+    .progress-step span.completed::before {
+      content: '✓ ';
+    }
+    
+    .badge-outline {
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+    }
+  </style>
+  <script src="js/api.js?v=2"></script>
+  <script src="js/auth.js?v=2"></script>
+  <script src="js/main.js?v=2"></script>
+  <script src="js/submit.js?v=2"></script>
+  <script>
+    // Initialize authentication UI
+    document.addEventListener('DOMContentLoaded', async () => {
+      await Auth.initializeAuthUI();
+      
+      const user = await Auth.getCurrentUser();
+      if (user) {
+        const dropdownUsername = document.getElementById('dropdownUsername');
+        const dropdownEmail = document.getElementById('dropdownEmail');
+        if (dropdownUsername) dropdownUsername.textContent = user.username;
+        if (dropdownEmail) dropdownEmail.textContent = user.email;
+      }
+      
+      const userMenuTrigger = document.getElementById('userMenuTrigger');
+      const userDropdown = document.getElementById('userDropdown');
+      
+      if (userMenuTrigger && userDropdown) {
+        userMenuTrigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.addEventListener('click', (e) => {
+          if (!userDropdown.contains(e.target) && !userMenuTrigger.contains(e.target)) {
+            userDropdown.style.display = 'none';
+          }
+        });
+      }
+      
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          const result = await Auth.logout();
+          if (result.success) {
+            window.location.href = 'index.html';
+          }
+        });
+      }
+      
+      const userMenuTriggerEl = document.getElementById('userMenuTrigger');
+      if (userMenuTriggerEl) {
+        userMenuTriggerEl.addEventListener('mouseenter', () => {
+          userMenuTriggerEl.style.background = 'var(--color-gray-100)';
+        });
+        userMenuTriggerEl.addEventListener('mouseleave', () => {
+          userMenuTriggerEl.style.background = 'transparent';
+        });
+      }
+      
+      const dropdownLinks = document.querySelectorAll('.user-dropdown a, .user-dropdown button');
+      dropdownLinks.forEach(link => {
+        link.addEventListener('mouseenter', () => {
+          link.style.background = 'var(--color-gray-50)';
+        });
+        link.addEventListener('mouseleave', () => {
+          link.style.background = 'transparent';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

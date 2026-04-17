@@ -1,0 +1,321 @@
+/* ========================================
+   LOADING STATES
+   Skeleton screens and loading animations
+   ======================================== */
+
+/* ===== SKELETON LOADER ===== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 25%,
+    var(--color-gray-200) 50%,
+    var(--color-gray-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Skeleton variants */
+.skeleton-text {
+  height: 1em;
+  margin-bottom: 0.5em;
+}
+
+.skeleton-title {
+  height: 2em;
+  width: 70%;
+  margin-bottom: 1em;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-button {
+  height: 44px;
+  width: 120px;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-card {
+  height: 200px;
+  border-radius: var(--radius-lg);
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 200px;
+  border-radius: var(--radius-md);
+}
+
+/* ===== SKELETON PRODUCT CARD ===== */
+
+.skeleton-product-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.skeleton-product-card .skeleton-image {
+  margin-bottom: var(--space-4);
+}
+
+.skeleton-product-card .skeleton-title {
+  width: 90%;
+  margin-bottom: var(--space-3);
+}
+
+.skeleton-product-card .skeleton-text {
+  width: 60%;
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-product-card .skeleton-text:last-child {
+  width: 40%;
+}
+
+/* ===== SPINNER LOADER ===== */
+
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--color-gray-200);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.spinner-lg {
+  width: 60px;
+  height: 60px;
+  border-width: 6px;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== LOADING OVERLAY ===== */
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+}
+
+.loading-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.loading-content {
+  text-align: center;
+  max-width: 400px;
+  padding: var(--space-8);
+}
+
+.loading-spinner {
+  margin-bottom: var(--space-6);
+}
+
+.loading-message {
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.loading-submessage {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ===== PROGRESS BAR ===== */
+
+.progress {
+  width: 100%;
+  height: 8px;
+  background: var(--color-gray-200);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: var(--space-4);
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), #6B8AFF);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+  animation: progress-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ===== PULSE ANIMATION ===== */
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ===== FADE IN ANIMATION ===== */
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== LOADING STATES FOR SPECIFIC COMPONENTS ===== */
+
+/* Product grid loading */
+.products-grid.loading {
+  pointer-events: none;
+}
+
+.products-grid.loading .product-card {
+  opacity: 0.5;
+}
+
+/* Table loading */
+.table-loading {
+  position: relative;
+}
+
+.table-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Button loading state */
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinner-rotate 0.6s linear infinite;
+}
+
+/* ===== SKELETON GRID ===== */
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+/* ===== LAZY LOAD PLACEHOLDER ===== */
+
+.lazy-placeholder {
+  background: var(--color-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border-radius: var(--radius-md);
+}
+
+.lazy-placeholder::after {
+  content: '📦';
+  font-size: 3rem;
+  opacity: 0.3;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .spinner-lg {
+    width: 50px;
+    height: 50px;
+    border-width: 4px;
+  }
+  
+  .loading-content {
+    padding: var(--space-6);
+  }
+}

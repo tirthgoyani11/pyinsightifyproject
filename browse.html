@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse and discover analyzed products on Insightify">
+  <title>Browse Products - Insightify</title>
+  
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/loading.css">
+</head>
+<body>
+  
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <div class="nav-content">
+        <a href="index.html" class="logo">
+          <span class="logo-icon">💡</span>
+          <span class="logo-text">Insightify</span>
+        </a>
+        
+        <ul class="nav-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="browse.html" class="active">Browse</a></li>
+          <li><a href="submit.html">Analyze Product</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="compare.html">Compare</a></li>
+        </ul>
+        
+        <!-- Auth Buttons (shown when not logged in) -->
+        <div id="authButtons" style="display: flex; gap: var(--space-3); align-items: center;">
+          <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+          <a href="register.html" class="btn btn-primary btn-sm">Sign Up</a>
+        </div>
+        
+        <!-- User Menu (shown when logged in) -->
+        <div id="userMenu" style="display: none; position: relative;">
+          <button class="user-menu-trigger" id="userMenuTrigger" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); transition: background 0.2s;">
+            <div id="userAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;">U</div>
+            <span id="userDisplay" style="font-weight: 500; color: var(--color-text);">User</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          
+          <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: var(--space-2); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
+            <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border);">
+              <div style="font-weight: 600; color: var(--color-text);" id="dropdownUsername">User</div>
+              <div style="font-size: var(--text-sm); color: var(--color-text-secondary);" id="dropdownEmail">user@example.com</div>
+            </div>
+            <a href="profile.html" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-text); text-decoration: none; transition: background 0.2s;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Profile
+            </a>
+            <button id="logoutBtn" style="width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-danger); background: none; border: none; border-top: 1px solid var(--color-border); cursor: pointer; transition: background 0.2s; text-align: left;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+        
+        <button class="mobile-menu-toggle" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Search Header -->
+  <section class="section-small" style="background: linear-gradient(135deg, var(--color-primary) 0%, #6B8AFF 100%); color: white;">
+    <div class="container">
+      <h1 style="text-align: center; margin-bottom: var(--space-6);">Discover Products</h1>
+      
+      <!-- Search Bar -->
+      <div style="max-width: 600px; margin: 0 auto;">
+        <div class="input-group">
+          <input 
+            type="search" 
+            id="searchInput" 
+            class="input" 
+            placeholder="Search for products..." 
+            style="background: white; font-size: 1rem; padding: var(--space-4);"
+          >
+          <button class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Search
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container">
+      
+      <div style="display: grid; grid-template-columns: 250px 1fr; gap: var(--space-8);">
+        
+        <!-- Sidebar Filters -->
+        <aside>
+          <div class="card" style="padding: var(--space-6); position: sticky; top: var(--space-6);">
+            
+            <h3 style="margin-bottom: var(--space-6);">Filters</h3>
+            
+            <!-- Category Filter -->
+            <div style="margin-bottom: var(--space-6);">
+              <h4 style="font-size: 0.9rem; margin-bottom: var(--space-3);">Category</h4>
+              <div id="categoryFilters">
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="all" checked> 
+                  <span>All Categories</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Electronics"> 
+                  <span>Electronics</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Home"> 
+                  <span>Home & Kitchen</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Fashion"> 
+                  <span>Fashion</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Beauty"> 
+                  <span>Beauty</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Sports"> 
+                  <span>Sports</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Retailer Filter -->
+            <div style="margin-bottom: var(--space-6);">
+              <h4 style="font-size: 0.9rem; margin-bottom: var(--space-3);">Retailer</h4>
+              <div id="retailerFilters">
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Amazon"> 
+                  <span>Amazon</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Flipkart"> 
+                  <span>Flipkart</span>
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" value="Walmart"> 
+                  <span>Walmart</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Insight Score Filter -->
+            <div style="margin-bottom: var(--space-6);">
+              <h4 style="font-size: 0.9rem; margin-bottom: var(--space-3);">Minimum Insight Score</h4>
+              <input type="range" id="scoreRange" min="0" max="100" value="0" style="width: 100%;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-text-secondary);">
+                <span>0</span>
+                <span id="scoreValue">0+</span>
+                <span>100</span>
+              </div>
+            </div>
+            
+            <button class="btn btn-outline btn-sm" onclick="resetFilters()" style="width: 100%;">
+              Clear Filters
+            </button>
+            
+          </div>
+        </aside>
+        
+        <!-- Products Grid -->
+        <div>
+          
+          <!-- Sort and View Options -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6);">
+            <p class="text-secondary" id="resultCount">Showing <strong>24</strong> products</p>
+            
+            <div style="display: flex; gap: var(--space-3); align-items: center;">
+              <label for="sortBy" style="font-size: 0.875rem;">Sort:</label>
+              <select id="sortBy" class="input" style="padding: var(--space-2) var(--space-3); font-size: 0.875rem;">
+                <option value="recent">Most Recent</option>
+                <option value="score">Highest Score</option>
+                <option value="reviews">Most Reviews</option>
+                <option value="name">Name A-Z</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Products Grid -->
+          <div id="productsGrid" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-6);">
+            <!-- Products will be loaded here -->
+          </div>
+          
+          <!-- Pagination -->
+          <div id="pagination" style="display: flex; justify-content: center; gap: var(--space-2); margin-top: var(--space-8);">
+            <!-- Pagination buttons will be added here -->
+          </div>
+          
+        </div>
+        
+      </div>
+      
+    </div>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-icon">💡</span>
+            <span class="logo-text">Insightify</span>
+          </div>
+          <p class="footer-tagline">Making product research simple and unbiased.</p>
+        </div>
+        
+        <div class="footer-links">
+          <div class="footer-column">
+            <h4>Product</h4>
+            <ul class="list-unstyled">
+              <li><a href="index.html">Home</a></li>
+              <li><a href="browse.html">Browse Products</a></li>
+              <li><a href="submit.html">Analyze Product</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Community</h4>
+            <ul class="list-unstyled">
+              <li><a href="community.html">Discussion Boards</a></li>
+              <li><a href="#">Guidelines</a></li>
+              <li><a href="#">FAQ</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>Company</h4>
+            <ul class="list-unstyled">
+              <li><a href="#">About Us</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 Insightify. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+  
+  <style>
+    .filter-checkbox {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) 0;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    
+    .filter-checkbox input[type="checkbox"] {
+      cursor: pointer;
+    }
+    
+    .filter-checkbox:hover {
+      color: var(--color-primary);
+    }
+    
+    .product-card-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: var(--color-background);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-3);
+    }
+    
+    .score-badge {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      background: white;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    @media (max-width: 768px) {
+      main .container > div {
+        grid-template-columns: 1fr !important;
+      }
+      
+      aside {
+        position: relative !important;
+      }
+    }
+  </style>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/browse.js"></script>
+  <script>
+    // Initialize authentication UI
+    document.addEventListener('DOMContentLoaded', async () => {
+      await Auth.initializeAuthUI();
+      
+      const user = await Auth.getCurrentUser();
+      if (user) {
+        const dropdownUsername = document.getElementById('dropdownUsername');
+        const dropdownEmail = document.getElementById('dropdownEmail');
+        if (dropdownUsername) dropdownUsername.textContent = user.username;
+        if (dropdownEmail) dropdownEmail.textContent = user.email;
+      }
+      
+      const userMenuTrigger = document.getElementById('userMenuTrigger');
+      const userDropdown = document.getElementById('userDropdown');
+      
+      if (userMenuTrigger && userDropdown) {
+        userMenuTrigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.addEventListener('click', (e) => {
+          if (!userDropdown.contains(e.target) && !userMenuTrigger.contains(e.target)) {
+            userDropdown.style.display = 'none';
+          }
+        });
+      }
+      
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          const result = await Auth.logout();
+          if (result.success) {
+            window.location.href = 'index.html';
+          }
+        });
+      }
+      
+      const userMenuTriggerEl = document.getElementById('userMenuTrigger');
+      if (userMenuTriggerEl) {
+        userMenuTriggerEl.addEventListener('mouseenter', () => {
+          userMenuTriggerEl.style.background = 'var(--color-gray-100)';
+        });
+        userMenuTriggerEl.addEventListener('mouseleave', () => {
+          userMenuTriggerEl.style.background = 'transparent';
+        });
+      }
+      
+      const dropdownLinks = document.querySelectorAll('.user-dropdown a, .user-dropdown button');
+      dropdownLinks.forEach(link => {
+        link.addEventListener('mouseenter', () => {
+          link.style.background = 'var(--color-gray-50)';
+        });
+        link.addEventListener('mouseleave', () => {
+          link.style.background = 'transparent';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

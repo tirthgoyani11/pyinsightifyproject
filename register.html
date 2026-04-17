@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - PyInsightify</title>
+    <link rel="stylesheet" href="css/design-system.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <style>
+        .auth-container {
+            max-width: 550px;
+            margin: 40px auto;
+            padding: 40px;
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .auth-header h1 {
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .auth-header p {
+            color: #4b5563;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group label .optional {
+            color: #6b7280;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            color: #1f2937;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .form-group input.error,
+        .form-group textarea.error {
+            border-color: #ef4444;
+        }
+
+        .form-group .error-message {
+            color: #dc2626;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: none;
+        }
+
+        .form-group.has-error .error-message {
+            display: block;
+        }
+
+        .password-strength {
+            display: flex;
+            gap: 4px;
+            height: 4px;
+            margin-top: 4px;
+        }
+
+        .password-strength span {
+            flex: 1;
+            background: var(--border);
+            border-radius: 2px;
+            transition: background 0.3s ease;
+        }
+
+        .password-strength.weak span:first-child {
+            background: var(--error);
+        }
+
+        .password-strength.medium span:nth-child(-n+2) {
+            background: orange;
+        }
+
+        .password-strength.strong span {
+            background: var(--success);
+        }
+
+        .password-requirements {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+
+        .password-requirements li {
+            margin-left: 20px;
+        }
+
+        .submit-btn {
+            padding: 14px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .auth-footer p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .auth-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .auth-footer a:hover {
+            color: var(--primary-dark);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+            font-weight: 600;
+        }
+
+        .alert.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .auth-container {
+                margin: 20px;
+                padding: 24px;
+            }
+
+            .auth-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-content">
+                <a href="index.html" class="logo">
+                    <span class="logo-icon">�</span>
+                    <span class="logo-text">Insightify</span>
+                </a>
+                
+                <ul class="nav-menu">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="browse.html">Browse</a></li>
+                    <li><a href="submit.html">Analyze Product</a></li>
+                    <li><a href="community.html">Community</a></li>
+                    <li><a href="compare.html">Compare</a></li>
+                </ul>
+                
+                <div style="display: flex; gap: var(--space-3); align-items: center;">
+                    <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Already have an account?</span>
+                    <a href="login.html" class="btn btn-primary btn-sm">Login</a>
+                </div>
+                
+                <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>Create Account</h1>
+                <p>Join PyInsightify to analyze products and connect with the community</p>
+            </div>
+
+            <!-- Alert Messages -->
+            <div id="alertMessage" class="alert"></div>
+
+            <!-- Registration Form -->
+            <form id="registerForm" class="auth-form">
+                <div class="form-row">
+                    <div class="form-group" id="usernameGroup">
+                        <label for="username">Username</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            placeholder="Choose a username"
+                            required
+                            minlength="3"
+                            autocomplete="username"
+                        >
+                        <span class="error-message">Username must be at least 3 characters</span>
+                    </div>
+
+                    <div class="form-group" id="emailGroup">
+                        <label for="email">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            placeholder="Enter your email"
+                            required
+                            autocomplete="email"
+                        >
+                        <span class="error-message">Please enter a valid email address</span>
+                    </div>
+                </div>
+
+                <div class="form-group" id="fullNameGroup">
+                    <label for="fullName">Full Name <span class="optional">(optional)</span></label>
+                    <input 
+                        type="text" 
+                        id="fullName" 
+                        name="fullName" 
+                        placeholder="Enter your full name"
+                        autocomplete="name"
+                    >
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="passwordGroup">
+                        <label for="password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Create a password"
+                            required
+                            minlength="6"
+                            autocomplete="new-password"
+                        >
+                        <div class="password-strength" id="passwordStrength">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span class="error-message">Password must be at least 6 characters</span>
+                    </div>
+
+                    <div class="form-group" id="confirmPasswordGroup">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            placeholder="Confirm your password"
+                            required
+                            minlength="6"
+                            autocomplete="new-password"
+                        >
+                        <span class="error-message">Passwords do not match</span>
+                    </div>
+                </div>
+
+                <div class="form-group" id="locationGroup">
+                    <label for="location">Location <span class="optional">(optional)</span></label>
+                    <input 
+                        type="text" 
+                        id="location" 
+                        name="location" 
+                        placeholder="City, Country"
+                    >
+                </div>
+
+                <div class="form-group" id="bioGroup">
+                    <label for="bio">Bio <span class="optional">(optional)</span></label>
+                    <textarea 
+                        id="bio" 
+                        name="bio" 
+                        placeholder="Tell us a bit about yourself..."
+                        maxlength="500"
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn">Create Account</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="login.html">Login here</a></p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Registration Form Handler
+        const registerForm = document.getElementById('registerForm');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('email');
+        const fullNameInput = document.getElementById('fullName');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const locationInput = document.getElementById('location');
+        const bioInput = document.getElementById('bio');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const alertMessage = document.getElementById('alertMessage');
+        const passwordStrength = document.getElementById('passwordStrength');
+
+        // Show alert message
+        function showAlert(message, type = 'error') {
+            alertMessage.textContent = message;
+            alertMessage.className = `alert ${type} show`;
+            setTimeout(() => {
+                alertMessage.classList.remove('show');
+            }, 5000);
+        }
+
+        // Validate email format
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Calculate password strength
+        function calculatePasswordStrength(password) {
+            if (password.length < 6) return 'weak';
+            
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z\d]/.test(password)) strength++;
+
+            if (strength >= 3) return 'strong';
+            if (strength >= 2) return 'medium';
+            return 'weak';
+        }
+
+        // Update password strength indicator
+        passwordInput.addEventListener('input', () => {
+            const strength = calculatePasswordStrength(passwordInput.value);
+            passwordStrength.className = `password-strength ${strength}`;
+        });
+
+        // Show/hide loading overlay
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingOverlay.classList.add('active');
+                registerForm.querySelector('.submit-btn').disabled = true;
+            } else {
+                loadingOverlay.classList.remove('active');
+                registerForm.querySelector('.submit-btn').disabled = false;
+            }
+        }
+
+        // Form validation
+        function validateForm() {
+            let isValid = true;
+
+            // Validate username
+            const usernameGroup = document.getElementById('usernameGroup');
+            if (!usernameInput.value || usernameInput.value.length < 3) {
+                usernameGroup.classList.add('has-error');
+                usernameInput.classList.add('error');
+                isValid = false;
+            } else {
+                usernameGroup.classList.remove('has-error');
+                usernameInput.classList.remove('error');
+            }
+
+            // Validate email
+            const emailGroup = document.getElementById('emailGroup');
+            if (!emailInput.value || !isValidEmail(emailInput.value)) {
+                emailGroup.classList.add('has-error');
+                emailInput.classList.add('error');
+                isValid = false;
+            } else {
+                emailGroup.classList.remove('has-error');
+                emailInput.classList.remove('error');
+            }
+
+            // Validate password
+            const passwordGroup = document.getElementById('passwordGroup');
+            if (!passwordInput.value || passwordInput.value.length < 6) {
+                passwordGroup.classList.add('has-error');
+                passwordInput.classList.add('error');
+                isValid = false;
+            } else {
+                passwordGroup.classList.remove('has-error');
+                passwordInput.classList.remove('error');
+            }
+
+            // Validate confirm password
+            const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+            if (!confirmPasswordInput.value || confirmPasswordInput.value !== passwordInput.value) {
+                confirmPasswordGroup.classList.add('has-error');
+                confirmPasswordInput.classList.add('error');
+                isValid = false;
+            } else {
+                confirmPasswordGroup.classList.remove('has-error');
+                confirmPasswordInput.classList.remove('error');
+            }
+
+            return isValid;
+        }
+
+        // Handle form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Validate form
+            if (!validateForm()) {
+                showAlert('Please fix the errors in the form.', 'error');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const formData = {
+                    username: usernameInput.value.trim(),
+                    email: emailInput.value.trim(),
+                    password: passwordInput.value,
+                    fullName: fullNameInput.value.trim() || undefined,
+                    location: locationInput.value.trim() || undefined,
+                    bio: bioInput.value.trim() || undefined
+                };
+
+                console.log('Attempting registration for:', formData.username);
+
+                const response = await fetch('http://localhost:5000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // Important for session cookies
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('Registration successful:', data);
+                    showAlert('Account created successfully! Redirecting...', 'success');
+
+                    // Store user info
+                    localStorage.setItem('userId', data.user.id);
+                    localStorage.setItem('username', data.user.username);
+
+                    // Redirect after 1.5 seconds
+                    setTimeout(() => {
+                        window.location.href = 'browse.html';
+                    }, 1500);
+                } else {
+                    console.error('Registration failed:', data);
+                    showAlert(data.error || 'Registration failed. Please try again.', 'error');
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showAlert('An error occurred. Please try again later.', 'error');
+                setLoading(false);
+            }
+        });
+
+        // Real-time validation
+        usernameInput.addEventListener('blur', () => {
+            const usernameGroup = document.getElementById('usernameGroup');
+            if (usernameInput.value && usernameInput.value.length < 3) {
+                usernameGroup.classList.add('has-error');
+                usernameInput.classList.add('error');
+            } else {
+                usernameGroup.classList.remove('has-error');
+                usernameInput.classList.remove('error');
+            }
+        });
+
+        emailInput.addEventListener('blur', () => {
+            const emailGroup = document.getElementById('emailGroup');
+            if (emailInput.value && !isValidEmail(emailInput.value)) {
+                emailGroup.classList.add('has-error');
+                emailInput.classList.add('error');
+            } else {
+                emailGroup.classList.remove('has-error');
+                emailInput.classList.remove('error');
+            }
+        });
+
+        passwordInput.addEventListener('blur', () => {
+            const passwordGroup = document.getElementById('passwordGroup');
+            if (passwordInput.value && passwordInput.value.length < 6) {
+                passwordGroup.classList.add('has-error');
+                passwordInput.classList.add('error');
+            } else {
+                passwordGroup.classList.remove('has-error');
+                passwordInput.classList.remove('error');
+            }
+        });
+
+        confirmPasswordInput.addEventListener('blur', () => {
+            const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+            if (confirmPasswordInput.value && confirmPasswordInput.value !== passwordInput.value) {
+                confirmPasswordGroup.classList.add('has-error');
+                confirmPasswordInput.classList.add('error');
+            } else {
+                confirmPasswordGroup.classList.remove('has-error');
+                confirmPasswordInput.classList.remove('error');
+            }
+        });
+
+        // Update confirm password validation when password changes
+        passwordInput.addEventListener('input', () => {
+            if (confirmPasswordInput.value) {
+                const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+                if (confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordGroup.classList.add('has-error');
+                    confirmPasswordInput.classList.add('error');
+                } else {
+                    confirmPasswordGroup.classList.remove('has-error');
+                    confirmPasswordInput.classList.remove('error');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
