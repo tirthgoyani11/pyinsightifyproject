@@ -6,7 +6,7 @@
 /* ===== COMMUNITY HEADER ===== */
 
 .community-header {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #3451E6 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
   color: white;
   padding: var(--space-12) 0 var(--space-8);
   text-align: center;
@@ -444,7 +444,7 @@
 /* ===== USER PROFILE ===== */
 
 .profile-header {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #3451E6 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
   color: white;
   padding: var(--space-12) 0;
 }

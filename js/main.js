@@ -99,6 +99,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // ===== FORM VALIDATION & REAL ANALYSIS =====
+  
+  // ===== DEMO PILLS CLICK =====
+  document.querySelectorAll('.demo-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = pill.getAttribute('data-url');
+      const input = document.getElementById('productUrl');
+      if (input && url) {
+        input.value = url;
+        input.focus();
+        if (typeof showNotification === 'function') {
+          showNotification(`Loaded sample: ${pill.textContent.trim()}`, 'info');
+        }
+      }
+    });
+  });
+
   const analyzeForm = document.getElementById('analyzeForm');
   if (analyzeForm) {
     analyzeForm.addEventListener('submit', async (e) => {

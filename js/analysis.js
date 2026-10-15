@@ -336,7 +336,7 @@ function renderAspectDimensions(specsData, fallbackSpecs) {
       }
 
       return `
-        <div class="spec-item-card" style="background: #ffffff; border: 1px solid var(--color-border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div class="spec-item-card liquid-glass-card" style=" border: 1px solid var(--color-border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
           <div>
             <div class="spec-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <span class="spec-label" style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); letter-spacing: -0.01em;">
@@ -361,7 +361,7 @@ function renderAspectDimensions(specsData, fallbackSpecs) {
       { name: 'Quality & Build', icon: '✨', score: Math.round(fallbackSpecs.quality || 75), gradient: '#6366f1, #4f46e5', color: '#4f46e5', summary: 'Overall construction, materials, and finish satisfaction.' },
       { name: 'Value for Money', icon: '💰', score: Math.round(fallbackSpecs.value || 75), gradient: '#10b981, #059669', color: '#059669', summary: 'Price to performance perception among verified buyers.' },
       { name: 'Durability', icon: '🛡️', score: Math.round(fallbackSpecs.durability || 70), gradient: '#f59e0b, #d97706', color: '#d97706', summary: 'Long-term wear resistance and structural reliability.' },
-      { name: 'Features', icon: '⚙️', score: Math.round(fallbackSpecs.features || 80), gradient: '#3b82f6, #2563eb', color: '#2563eb', summary: 'Availability and execution of key promised capabilities.' },
+      { name: 'Features', icon: '⚙️', score: Math.round(fallbackSpecs.features || 80), gradient: '#1d4ed8, #2563eb', color: '#1d4ed8', summary: 'Availability and execution of key promised capabilities.' },
       { name: 'Satisfaction', icon: '⭐', score: Math.round(fallbackSpecs.performance || 78), gradient: '#8b5cf6, #7c3aed', color: '#7c3aed', summary: 'Overall user endorsement and repeat-purchase confidence.' },
     ];
     grid.innerHTML = defaultSpecs.map(s => `

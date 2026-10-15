@@ -305,7 +305,7 @@ function createProductCard(product) {
   const scoreColor = getScoreColor(product.insightScore);
   
   return `
-    <a href="analysis.html?id=${product.id}" class="card" style="text-decoration: none; color: inherit; padding: var(--space-4); position: relative; transition: transform 0.2s, box-shadow 0.2s;">
+    <a href="analysis.html?id=${product.id}" class="card liquid-glass-card" style="text-decoration: none; color: inherit; padding: var(--space-4); position: relative; transition: transform 0.2s, box-shadow 0.2s;">
       <div style="position: relative;">
         <div class="product-card-img" style="background: linear-gradient(135deg, ${scoreColor}22 0%, ${scoreColor}44 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
           ${getCategoryIcon(product.category)}
@@ -422,7 +422,7 @@ function resetFilters() {
  */
 function getScoreColor(score) {
   if (score >= 90) return '#198754';
-  if (score >= 75) return '#4A69FF';
+  if (score >= 75) return '#1d4ed8';
   if (score >= 60) return '#FFC107';
   return '#DC3545';
 }

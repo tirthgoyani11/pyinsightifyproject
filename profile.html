@@ -467,72 +467,74 @@
             }
         }
     </style>
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-content">
-                <a href="index.html" class="logo">
-                    <span class="logo-icon">�</span>
-                    <span class="logo-text">Insightify</span>
-                </a>
-                
-                <ul class="nav-menu">
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="browse.html">Browse</a></li>
-                    <li><a href="submit.html">Analyze Product</a></li>
-                    <li><a href="community.html">Community</a></li>
-                    <li><a href="compare.html">Compare</a></li>
-                </ul>
-                
-                <!-- Auth Buttons (shown when not logged in) -->
-                <div id="authButtons" style="display: flex; gap: var(--space-3); align-items: center;">
-                    <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
-                    <a href="register.html" class="btn btn-primary btn-sm">Sign Up</a>
-                </div>
-                
-                <!-- User Menu (shown when logged in) -->
-                <div id="userMenu" style="display: none; position: relative;">
-                    <button class="user-menu-trigger" id="userMenuTrigger" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); transition: background 0.2s;">
-                        <div id="userAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;">U</div>
-                        <span id="userDisplay" style="font-weight: 500; color: var(--color-text);">User</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
-                    
-                    <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: var(--space-2); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
-                        <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border);">
-                            <div style="font-weight: 600; color: var(--color-text);" id="dropdownUsername">User</div>
-                            <div style="font-size: var(--text-sm); color: var(--color-text-secondary);" id="dropdownEmail">user@example.com</div>
-                        </div>
-                        <a href="profile.html" class="active" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-primary); text-decoration: none; transition: background 0.2s; background: var(--color-gray-50);">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                            Profile
-                        </a>
-                        <button id="logoutBtnNav" style="width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-danger); background: none; border: none; border-top: 1px solid var(--color-border); cursor: pointer; transition: background 0.2s; text-align: left;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <polyline points="16 17 21 12 16 7"></polyline>
-                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                            </svg>
-                            Logout
-                        </button>
-                    </div>
-                </div>
-                
-                <button class="mobile-menu-toggle" aria-label="Toggle menu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
+      <!-- Supaste Notch Navigation Bar (https://www.supaste.com/) -->
+  <div class="framer-8v007w-container supaste-navbar-container" data-framer-appear-id="8v007w">
+    <nav class="framer-mxzXr framer-Nbf7m framer-s98ecn framer-v-s98ecn supaste-navbar" data-framer-name="Desktop">
+      <div class="framer-18gbe84 supaste-nav-content" data-framer-name="Content">
+        <!-- Logo (Left) -->
+        <div class="framer-1qxc2wt supaste-nav-left" data-framer-name="Left">
+          <a class="framer-1hmaiy framer-1h1avxg supaste-logo" data-framer-name="Logo" href="index.html">
+            <div class="framer-197y5gw supaste-app-icon" data-framer-name="App icon">
+              <img src="images/logo.png" alt="Insightify" class="supaste-logo-img">
             </div>
+            <div class="framer-1tgpjgm supaste-logo-text" data-framer-component-type="RichTextContainer">
+              <p dir="auto" class="framer-text">Insightify</p>
+            </div>
+          </a>
         </div>
+
+        <!-- Links (Center) -->
+        <div class="framer-m1k0id supaste-nav-links" data-framer-name="Right">
+          <div><a class="framer-text " href="index.html">Home</a></div>
+          <div><a class="framer-text " href="browse.html">Browse</a></div>
+          <div><a class="framer-text " href="submit.html">Analyze Product</a></div>
+          <div><a class="framer-text " href="community.html">Community</a></div>
+          <div><a class="framer-text " href="compare.html">Compare</a></div>
+        </div>
+
+        <!-- White Action CTA Button (Right) -->
+        <div class="framer-1zb5hk-container supaste-nav-cta-wrapper">
+          <a class="framer-2DWFg supaste-download-btn" href="submit.html" data-framer-name="Small">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>Analyze Now</span>
+          </a>
+          
+          <button class="mobile-menu-toggle supaste-mobile-toggle" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inverted Cutout Wings (Fillets) -->
+      <div class="framer-1v4oh4y supaste-wing supaste-wing-left" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 0 0 L 20 0 C 8.954 0 0 8.954 0 20 Z" fill="#000000"></path>
+        </svg>
+      </div>
+      <div class="framer-rnb6d7 supaste-wing supaste-wing-right" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 0 0 L 20 0 C 8.954 0 0 8.954 0 20 Z" fill="#000000"></path>
+        </svg>
+      </div>
+
+      <!-- Mobile Dropdown Menu -->
+      <div class="nav-menu supaste-mobile-menu">
+        <a href="index.html" class="">Home</a>
+        <a href="browse.html" class="">Browse</a>
+        <a href="submit.html" class="">Analyze Product</a>
+        <a href="community.html" class="">Community</a>
+        <a href="compare.html" class="">Compare</a>
+      </div>
     </nav>
+  </div>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
