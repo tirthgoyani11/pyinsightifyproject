@@ -10,10 +10,11 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/loading.css">
+  <link rel="stylesheet" href="css/studio.css">
   <link rel="icon" type="image/png" href="images/favicon.png">
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 </head>
-<body>
+<body class="insight-studio submit-studio">
   
     <!-- Supaste Notch Navigation Bar (https://www.supaste.com/) -->
   <div class="framer-8v007w-container supaste-navbar-container" data-framer-appear-id="8v007w">
@@ -82,18 +83,23 @@
   
   <!-- Main Content -->
   <main class="section">
-    <div class="container" style="max-width: 800px;">
+    <div class="container" style="max-width: 1120px;">
       
-      <!-- Page Header -->
-      <div class="section-header" style="text-align: center; margin-bottom: var(--space-8);">
-        <h1>Analyze a Product</h1>
-        <p class="text-secondary">
-          Paste a product link and get instant insights from thousands of reviews
-        </p>
-      </div>
-      
-      <!-- Submit Form -->
-      <div class="card" style="padding: var(--space-8);">
+      <div class="studio-workspace">
+        <div class="studio-heading">
+          <span class="studio-eyebrow"><span class="status-dot"></span> THE REVIEW INTELLIGENCE STUDIO</span>
+          <h1>Good products.<br>Real opinions.<br><span class="heading-accent">Clear decisions.</span></h1>
+          <p>See the story behind the stars. We bring customer sentiment, product strengths, and the trade-offs into one useful report.</p>
+          <div class="intelligence-object" aria-hidden="true">
+            <div class="object-grid"></div><div class="glass-lens"><img src="animations/brain-still.webp" width="168" height="168" alt=""><span>From opinions to understanding</span></div>
+            <span class="object-label label-top">REVIEWS IN</span><span class="object-label label-bottom">CLARITY OUT ↗</span>
+          </div>
+          <div class="studio-byline"><span>01 / Add a product</span><span>02 / Explore the insights</span></div>
+        </div>
+        <div class="form-shell">
+          <div class="form-kicker"><span class="studio-eyebrow">NEW ANALYSIS</span><span class="form-step">01 — 02</span></div>
+          <h2>What’s on your shortlist?</h2><p class="form-description">Start with a link. We’ll take it from here.</p>
+          <div class="card studio-form">
         <form id="submitProductForm">
           
           <!-- Product URL Input -->
@@ -105,12 +111,12 @@
               type="url" 
               id="productUrl" 
               class="input" 
-              placeholder="https://www.amazon.com/product/..."
+              placeholder="Paste an Amazon or Flipkart product link"
               required
               aria-describedby="urlHelp"
             >
             <small id="urlHelp" class="text-secondary">
-              Paste the full URL from Amazon, Flipkart, or other supported retailers
+              We detect the retailer automatically when you paste a link.
             </small>
           </div>
           
@@ -130,7 +136,7 @@
             </select>
           </div>
           
-          <!-- Product Name (Optional) -->
+          <details class="optional-details"><summary>Fine-tune your analysis <span>Optional</span></summary><div class="optional-fields">          <!-- Product Name (Optional) -->
           <div style="margin-bottom: var(--space-6);">
             <label for="productName" class="form-label">
               Product Name (Optional)
@@ -164,10 +170,12 @@
             </select>
           </div>
           
+</div></details>
+          <p id="submitError" class="form-error" role="alert" hidden></p>
           <!-- Submit Button -->
           <div style="display: flex; gap: var(--space-4); margin-top: var(--space-8);">
             <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn" style="flex: 1;">
-              <span id="analyzeBtnText">Analyze Product</span>
+              <span id="analyzeBtnText">Reveal product insights <span aria-hidden="true">↗</span></span>
               <span id="analyzeBtnLoader" style="display: none;">
                 <span class="spinner"></span> Analyzing...
               </span>
@@ -178,8 +186,15 @@
           </div>
           
         </form>
+          </div>
+          <div class="form-assurance"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg><span>Review-based insights. No sponsored recommendations.</span></div>
+        </div>
       </div>
-      
+      <section class="split-story" aria-label="What your analysis reveals">
+        <div class="story-panel"><span>01 / LISTEN</span><h3>Read the room.</h3><p>Positive, negative, and neutral sentiment across customer reviews.</p></div>
+        <div class="story-panel"><span>02 / UNDERSTAND</span><h3>Find the details.</h3><p>See which product features earn praise and which need a closer look.</p></div>
+        <div class="story-panel"><span>03 / DECIDE</span><h3>Know your fit.</h3><p>Bring the trade-offs together in a practical purchase guide.</p></div>
+      </section>
       <!-- Recently Analyzed Products -->
       <div style="margin-top: var(--space-10);">
         <h3 style="margin-bottom: var(--space-6);">Recently Analyzed Products</h3>
@@ -188,50 +203,30 @@
         </div>
       </div>
       
-      <!-- Supported Retailers Info -->
-      <div class="card" style="margin-top: var(--space-8); padding: var(--space-6); background: var(--color-background);">
-        <h4 style="margin-bottom: var(--space-4);">Supported Retailers</h4>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4);">
-          <div class="badge badge-outline">🛒 Amazon</div>
-          <div class="badge badge-outline">🛍️ Flipkart</div>
-          <div class="badge badge-outline">🏪 Walmart</div>
-          <div class="badge badge-outline">🎯 Target</div>
-          <div class="badge badge-outline">💻 Best Buy</div>
-          <div class="badge badge-outline">📦 More Coming</div>
-        </div>
-        <p class="text-secondary" style="margin-top: var(--space-4); font-size: 0.875rem;">
-          Don't see your retailer? <a href="#" style="color: var(--color-primary);">Request it here</a>
-        </p>
-      </div>
-      
+      <div class="retailer-strip"><span>WORKS WITH</span><span>Amazon</span><span>Flipkart</span><span class="retailer-note">Other retailers depend on review availability.</span></div>
     </div>
   </main>
   
   <!-- Loading Overlay -->
-  <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: white; padding: var(--space-8); border-radius: var(--radius-lg); text-align: center; max-width: 400px;">
-      <div class="spinner" style="width: 48px; height: 48px; margin: 0 auto var(--space-4);"></div>
-      <h3>Analyzing Product...</h3>
-      <p class="text-secondary" style="margin-top: var(--space-2);">
-        This may take a few seconds while we process reviews
-      </p>
-      <div id="progressSteps" style="margin-top: var(--space-6); text-align: left;">
-        <div class="progress-step">
-          <span id="step1" class="text-secondary">⏳ Fetching product details...</span>
-        </div>
-        <div class="progress-step" style="margin-top: var(--space-2);">
-          <span id="step2" class="text-secondary">⏳ Collecting reviews...</span>
-        </div>
-        <div class="progress-step" style="margin-top: var(--space-2);">
-          <span id="step3" class="text-secondary">⏳ Analyzing sentiment...</span>
-        </div>
-        <div class="progress-step" style="margin-top: var(--space-2);">
-          <span id="step4" class="text-secondary">⏳ Generating insights...</span>
-        </div>
+  <div id="loadingOverlay" class="studio-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="analysisLoadingTitle" tabindex="-1">
+    <div class="studio-loading">
+      <span class="studio-eyebrow">INSIGHTIFY / ANALYSIS IN PROGRESS</span>
+      <img class="loading-brain" data-motion-src="animations/brain.webp" data-still-src="animations/brain-still.webp" src="animations/brain-still.webp" width="144" height="144" alt="">
+      <h2 id="analysisLoadingTitle">Turning reviews into<br><span class="word-swap" data-words="clarity,confidence,insight">clarity</span>.</h2>
+      <p>We’re working on your product. Keep this tab open while the analysis finishes.</p>
+      <p class="elapsed-label">Elapsed <span id="analysisElapsed">0:00</span><span class="elapsed-note"> · Working on your request</span></p>
+      <div class="processing-track" aria-hidden="true"><span></span></div>
+      <p id="analysisLiveStatus" class="sr-only" role="status" aria-live="polite"></p>
+      <div id="progressSteps">
+        <div class="progress-step"><span id="step1">Send product for analysis</span></div>
+        <div class="progress-step"><span id="step2">Process reviews and sentiment</span></div>
+        <div class="progress-step"><span id="step3">Retrieve completed analysis</span></div>
+        <div class="progress-step"><span id="step4">Open your report</span></div>
       </div>
+      <div class="loading-footnote"><img data-motion-src="animations/infinity.webp" data-still-src="animations/infinity-still.webp" src="animations/infinity-still.webp" width="32" height="32" alt="">Processing time depends on the product and review count.</div>
     </div>
   </div>
-  
+
     <!-- Footer -->
   <footer class="footer">
     <div class="container">
@@ -334,5 +329,6 @@
   <script src="js/api.js?v=2"></script>
   <script src="js/main.js?v=2"></script>
   <script src="js/submit.js?v=2"></script>
+  <script src="js/studio.js"></script>
 </body>
 </html>

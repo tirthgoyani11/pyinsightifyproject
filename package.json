@@ -1,0 +1,7 @@
+{
+  "name": "insightify-report-components",
+  "private": true,
+  "scripts": { "build:charts": "esbuild frontend/sentiment-chart.jsx --bundle --minify --format=iife --target=es2020 --outfile=js/vendor/sentiment-chart.min.js --legal-comments=linked" },
+  "dependencies": { "@emotion/react": "^11.14.0", "@emotion/styled": "^11.14.0", "@mui/material": "^7.0.0", "@mui/x-charts": "^8.0.0", "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "devDependencies": { "esbuild": "^0.25.0" }
+}

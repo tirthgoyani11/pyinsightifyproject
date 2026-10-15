@@ -188,7 +188,7 @@ class Product(db.Model):
             'strengths': json.loads(self.strengths) if self.strengths else [],
             'weaknesses': json.loads(self.weaknesses) if self.weaknesses else [],
             'commonTerms': (json.loads(self.common_terms) if getattr(self, 'common_terms', None) else None),
-            'analysisSource': ('roberta-bart-ensemble' if self.analysis_source in ('groq', 'ai', 'gemini', 'roberta-bart-ensemble') else (self.analysis_source or 'roberta-bart-ensemble')),
+            'analysisSource': self.analysis_source or 'unknown',
             'analyzedAt': self.analyzed_at.isoformat() if self.analyzed_at else None
         }
 

@@ -3,7 +3,6 @@
 // Handles analysis results page interactions with real NLP data
 // ========================================
 
-let sentimentChart = null;
 let currentProductData = null;
 let allReviews = [];
 let currentFilter = 'all';
@@ -11,8 +10,6 @@ let currentSort = 'helpful';
 let currentPage = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Chart
-  initializeSentimentChart();
   
   // Setup review filter buttons and search
   setupReviewControls();
@@ -97,7 +94,7 @@ async function loadProductData() {
     }
 
     const response = await API.products.getById(productId);
-    console.log('Backend response:', response);
+
 
     if (response.success && response.product) {
       const product = response.product;
@@ -108,7 +105,11 @@ async function loadProductData() {
 
       // 1. Populate main DOM elements (title, score, badge, specs, takeaways)
       populateProductData(product);
+      document.body.classList.remove('report-loading');
+      document.body.setAttribute('aria-busy', 'false');
 
+      displayTopics(response.topics || []);
+      displayCommonTerms({});
       // 2. Populate topics immediately from product response
       if (response.topics && response.topics.length > 0) {
         displayTopics(response.topics);
@@ -141,6 +142,7 @@ function populateProductData(product) {
   if (productImage && (product.image || product.image_url)) {
     productImage.src = product.image_url || product.image;
     productImage.alt = product.name;
+    productImage.onerror = () => { productImage.onerror = null; productImage.src = 'images/logo.png'; productImage.alt = 'Product image unavailable'; };
   }
 
   // 2. Update product name
@@ -172,15 +174,17 @@ function populateProductData(product) {
   // 5. Update insight score (backend uses insight_score, fallback to insightScore)
   const insightScoreEl = document.getElementById('insightScore');
   if (insightScoreEl) {
-    const targetScore = Math.round(product.insight_score || product.insightScore || 80);
-    animateScoreValue(insightScoreEl, targetScore);
+    const rawScore = product.insight_score ?? product.insightScore;
+    if (rawScore != null && Number.isFinite(Number(rawScore))) {
+      animateScoreValue(insightScoreEl, Math.max(0, Math.min(100, Math.round(Number(rawScore)))));
+    } else insightScoreEl.textContent = '—';
   }
 
   // 6. Update score description / review count
   const scoreDesc = document.querySelector('.score-description');
   if (scoreDesc) {
     const count = product.total_reviews || product.totalReviews || allReviews.length || 0;
-    scoreDesc.textContent = `Based on ${count.toLocaleString()} verified customer reviews`;
+    scoreDesc.textContent = `Based on ${count.toLocaleString()} customer reviews`;
   }
 
   // 6b. Show which engine produced the analysis (RoBERTa + BART Neural Architecture)
@@ -198,9 +202,7 @@ function populateProductData(product) {
   }
 
   // 7. Update sentiment chart & legend
-  if (product.sentiment) {
-    updateSentimentDisplay(product.sentiment, product.total_reviews || allReviews.length);
-  }
+  updateSentimentDisplay(product.sentiment || {}, product.total_reviews || product.totalReviews || allReviews.length);
 
   // 7b. Category badge if available
   const catBadge = document.getElementById('detectedCategoryBadge');
@@ -232,7 +234,7 @@ function populateProductData(product) {
         </li>
       `).join('');
     } else {
-      strengthsEl.innerHTML = '<li><strong>Consistently High User Satisfaction</strong></li>';
+      strengthsEl.innerHTML = '<li>No recurring strengths available in this report.</li>';
     }
   }
 
@@ -253,37 +255,26 @@ function populateProductData(product) {
         </li>
       `).join('');
     } else {
-      weaknessesEl.innerHTML = '<li><strong>No recurring flaws reported in customer reviews</strong></li>';
+      weaknessesEl.innerHTML = '<li>No recurring concerns available in this report.</li>';
     }
   }
 
   // 11. Update AI summary if element exists
   const summaryElement = document.querySelector('.ai-summary-text');
-  if (summaryElement && (product.ai_summary || product.aiSummary)) {
-    summaryElement.textContent = product.ai_summary || product.aiSummary;
-  }
+  if (summaryElement) summaryElement.textContent = product.ai_summary || product.aiSummary || 'A review summary is not available for this product yet.';
 }
 
 /**
  * Animate score counter
  */
 function animateScoreValue(element, targetScore) {
-  let currentScore = 0;
-  const duration = 1200;
-  const start = performance.now();
-
-  function update(now) {
-    const elapsed = now - start;
-    const progress = Math.min(elapsed / duration, 1);
-    currentScore = Math.floor(progress * targetScore);
-    element.textContent = currentScore;
-    if (progress < 1) {
-      requestAnimationFrame(update);
-    } else {
-      element.textContent = targetScore;
-    }
+  // Show the actual score immediately; animate its entrance rather than counting
+  // through values that are not the product's result.
+  element.textContent = targetScore;
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && element.animate) {
+    element.animate([{opacity: 0, transform: 'translateY(8px)'}, {opacity: 1, transform: 'translateY(0)'}],
+      {duration: 400, easing: 'cubic-bezier(.2,.8,.2,1)'});
   }
-  requestAnimationFrame(update);
 }
 
 /**
@@ -294,22 +285,13 @@ function updateSentimentDisplay(sentiment, totalCount) {
   const neu = parseFloat(sentiment.neutral) || 0;
   const neg = parseFloat(sentiment.negative) || 0;
 
-  // Update chart
-  if (sentimentChart) {
-    sentimentChart.data.datasets[0].data = [pos, neg, neu];
-    sentimentChart.update();
-  }
-
-  // Update legend items
-  const legendItems = document.querySelectorAll('.sentiment-legend .legend-item');
-  if (legendItems.length >= 3) {
-    const posLabel = legendItems[0].querySelector('.legend-label');
-    const negLabel = legendItems[1].querySelector('.legend-label');
-    const neuLabel = legendItems[2].querySelector('.legend-label');
-
-    if (posLabel) posLabel.textContent = `Positive (${pos.toFixed(1)}%)`;
-    if (negLabel) negLabel.textContent = `Negative (${neg.toFixed(1)}%)`;
-    if (neuLabel) neuLabel.textContent = `Neutral (${neu.toFixed(1)}%)`;
+  window.insightifyChartData = { sentiment: { positive: pos, negative: neg, neutral: neu }, totalCount, reviews: allReviews };
+  window.dispatchEvent(new Event('insightify:chart-data'));
+  const fallback = document.getElementById('sentimentChartFallback');
+  if (fallback) {
+    fallback.textContent = `Positive ${pos.toFixed(1)}% · Negative ${neg.toFixed(1)}% · Neutral ${neu.toFixed(1)}%`;
+    // Keep an accessible data fallback if the component bundle could not load.
+    fallback.hidden = Boolean(document.querySelector('#sentimentChartRoot svg'));
   }
 }
 
@@ -320,10 +302,12 @@ function renderAspectDimensions(specsData, fallbackSpecs) {
   const grid = document.getElementById('specsGrid');
   if (!grid) return;
 
+  grid.innerHTML = '<p class="text-secondary">Aspect scores are not available for this product yet.</p>';
+
   // If dynamic category-specific aspects are available
   if (Array.isArray(specsData) && specsData.length > 0) {
     grid.innerHTML = specsData.map(aspect => {
-      const score = Math.max(10, Math.min(100, Math.round(Number(aspect.score) || 75)));
+      const score = Math.max(0, Math.min(100, Math.round(Number(aspect.score) || 0)));
       let color = 'var(--color-primary)';
       if (score >= 80) {
         color = 'var(--color-positive)';
@@ -393,6 +377,10 @@ function renderBuyerGuide(buyerGuide, productFallback) {
   const fitRow = document.getElementById('fitFeedbackRow');
   const fitText = document.getElementById('fitFeedbackText');
 
+  if (bestForList) bestForList.innerHTML = '<li>No specific buyer profile available.</li>';
+  if (avoidIfList) avoidIfList.innerHTML = '<li>No specific limitations available.</li>';
+  if (verdictText) verdictText.textContent = 'Read the strengths and concerns above to weigh the trade-offs for your needs.';
+
   if (buyerGuide) {
     if (bestForList && Array.isArray(buyerGuide.best_for) && buyerGuide.best_for.length > 0) {
       bestForList.innerHTML = buyerGuide.best_for.map(item => `<li>${escapeHtml(item)}</li>`).join('');
@@ -429,13 +417,10 @@ function renderBuyerGuide(buyerGuide, productFallback) {
       if (Array.isArray(weaknesses) && weaknesses.length > 0) {
         avoidIfList.innerHTML = weaknesses.slice(0, 2).map(w => `<li>${escapeHtml(w)}</li>`).join('');
       } else {
-        avoidIfList.innerHTML = '<li>Heavy-duty commercial or extreme usage beyond standard consumer scenarios.</li>';
+        avoidIfList.innerHTML = '<li>No specific limitations available.</li>';
       }
     }
-    if (verdictText) {
-      const pos = (productFallback.sentiment && productFallback.sentiment.positive) || 80;
-      verdictText.textContent = `Backed by ${pos}% positive customer consensus, this product provides dependable everyday quality for buyers prioritizing core value and satisfaction.`;
-    }
+
   }
 }
 
@@ -665,6 +650,16 @@ function loadReviews() {
     }
   });
 
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  currentPage = Math.max(1, Math.min(currentPage, pageCount));
+  const previous = document.getElementById('reviewsPrevious');
+  const next = document.getElementById('reviewsNext');
+  if (previous) { previous.disabled = currentPage === 1; previous.onclick = () => { currentPage--; loadReviews(); }; }
+  if (next) { next.disabled = currentPage === pageCount; next.onclick = () => { currentPage++; loadReviews(); }; }
+  const pagination = document.querySelector('.pagination-info');
+  if (pagination) pagination.textContent = filtered.length ? `Page ${currentPage} of ${pageCount} · ${filtered.length} reviews` : 'No matching reviews';
+  filtered = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   // 4. Render
   if (filtered.length === 0) {
     reviewsList.innerHTML = `
@@ -721,65 +716,20 @@ window.markHelpful = function(reviewId) {
   }
 };
 
-/**
- * Chart Initialization
- */
-function initializeSentimentChart() {
-  const canvas = document.getElementById('sentimentDonutChart');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  if (sentimentChart) {
-    sentimentChart.destroy();
-  }
-
-  sentimentChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Positive', 'Negative', 'Neutral'],
-      datasets: [{
-        data: [70, 20, 10],
-        backgroundColor: [
-          'rgba(25, 135, 84, 0.85)',
-          'rgba(220, 53, 69, 0.85)',
-          'rgba(108, 117, 125, 0.85)'
-        ],
-        borderColor: [
-          'rgb(25, 135, 84)',
-          'rgb(220, 53, 69)',
-          'rgb(108, 117, 125)'
-        ],
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || '';
-              const value = context.parsed || 0;
-              return `${label}: ${value}%`;
-            }
-          }
-        }
-      },
-      cutout: '65%'
-    }
-  });
-}
-
 function showError(message) {
+  document.body.classList.remove('report-loading');
+  document.body.setAttribute('aria-busy', 'false');
+  document.body.classList.add('report-unavailable');
+  const header = document.querySelector('.product-header-content');
+  if (header) header.hidden = true;
   const main = document.querySelector('main') || document.querySelector('.product-header');
   if (main) {
     const errorDiv = document.createElement('div');
-    errorDiv.className = 'container';
-    errorDiv.style.cssText = 'text-align: center; padding: 2rem; margin: 2rem auto; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404;';
+    errorDiv.className = 'container report-error';
+    errorDiv.setAttribute('role', 'alert');
+
     errorDiv.innerHTML = `
-      <h3>Notice</h3>
+      <span class="studio-eyebrow">PRODUCT REPORT</span><h2>Let’s start with a product.</h2>
       <p>${escapeHtml(message)}</p>
       <a href="submit.html" class="btn btn-primary" style="margin-top: 1rem; display: inline-block;">Analyze Another Product</a>
     `;

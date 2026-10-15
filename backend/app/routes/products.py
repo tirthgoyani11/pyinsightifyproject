@@ -4,9 +4,11 @@ Product-related API routes
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import Product, Review
-from app.utils.scraper import scrape_product_data, scrape_product_reviews
+from app.utils.scraper import scrape_product_data, scrape_product_reviews, ScrapingError
+from app.utils.review_quality import prepare_reviews, review_quality
 from app.utils.sentiment import analyzer as sentiment_analyzer, extract_common_terms
 from datetime import datetime
+from app.utils.review_quality import parse_review_date
 import hashlib, json
 
 bp = Blueprint('products', __name__)
@@ -91,7 +93,8 @@ def get_product(product_id):
             'success': True,
             'product': product.to_dict(),
             'reviews': [r.to_dict() for r in reviews],
-            'topics': [t.to_dict() for t in topics]
+            'topics': [t.to_dict() for t in topics],
+            'quality': review_quality([r.to_dict() for r in reviews], product.analysis_source)
         })
         
     except Exception as e:
@@ -128,7 +131,12 @@ def analyze_product():
                 sample_revs = existing.reviews.limit(5).all()
                 has_mock = any(
                     r.author in ('Rahul K.', 'Vikram R.', 'Sneha M.', 'Priya S.', 'Amit P.', 'Neha T.', 'Arjun D.') or
-                    'Excellent product! Highly recommend' in (r.text or '')
+                    'Excellent product! Highly recommend' in (r.text or '') or
+                    (r.author in ('Aarav M.', 'Neha P.', 'Rohan D.', 'Ananya K.', 'Karan V.') and
+                     any(phrase in (r.text or '') for phrase in (
+                         'High quality and works as advertised.', 'Minor delivery delay but item is solid.',
+                         'Feels flimsy and average.', 'Super comfortable and great finishing on',
+                         'It is okay for daily casual use.')))
                     for r in sample_revs
                 )
                 if not has_mock and len(sample_revs) > 0:
@@ -148,8 +156,10 @@ def analyze_product():
             return jsonify({'success': False, 'error': 'Failed to scrape product'}), 500
         
         # Scrape reviews
-        reviews_data = scrape_product_reviews(url, max_reviews=100, product_name=product_data.get('name'))
+        reviews_data = scrape_product_reviews(canonical_url, max_reviews=100, product_name=product_data.get('name'))
         
+        reviews_data, cleaning_stats = prepare_reviews(reviews_data)
+
         # Reject unusable scrapes before spending any analysis effort
         if not reviews_data:
             return jsonify({
@@ -170,7 +180,7 @@ def analyze_product():
         from app.utils.gemini import get_analyzer as get_ai_analyzer
         ai = get_ai_analyzer()
         ai_result = ai.analyze_batch(reviews_data, product_name=product_data.get('name', ''))
-        ai_source = ai_result.get('source', 'roberta-bart-ensemble')
+        ai_source = ai_result.get('source', 'unknown')
 
         # Synchronize per-review classification directly from neural transformer
         classified_list = ai_result.get('reviews') or []
@@ -190,18 +200,11 @@ def analyze_product():
                 r['polarity'] = s_res['polarity']
                 r['confidence'] = s_res.get('confidence', 0.8)
 
-        ai_sent = ai_result.get('sentiment') or {}
-        if ai_sent.get('total'):
-            sentiment_analysis = {
-                'positive': ai_sent.get('positive', 70.0),
-                'neutral': ai_sent.get('neutral', 15.0),
-                'negative': ai_sent.get('negative', 15.0),
-                'overall_score': ai_sent.get('overall_score', 0.5),
-                'average_rating': product_data.get('rating', 0),
-                'total': ai_sent.get('total', len(reviews_data)),
-            }
-        else:
-            sentiment_analysis = sentiment_analyzer.analyze_reviews(reviews_data)
+        # Derive the aggregate from exactly the classifications that are persisted.
+        counts = {label: sum(r['sentiment'] == label for r in reviews_data) for label in ('positive', 'negative', 'neutral')}
+        total = len(reviews_data)
+        sentiment_analysis = {label: round(count / total * 100, 1) for label, count in counts.items()}
+        sentiment_analysis.update({'total': total, 'overall_score': sum(r.get('score', 0) for r in reviews_data) / total})
 
         dynamic_aspects = ai_result.get('dynamic_aspects') or []
         buyer_guide = ai_result.get('buyer_guide') or None
@@ -249,15 +252,8 @@ def analyze_product():
                 weaknesses = ['No significant complaints reported in verified reviews', 'Consistently positive customer feedback']
         weaknesses = weaknesses[:4]
 
-        # Extract meaningful word cloud terms
-        common_terms_data = None
-        if ai_result.get('positive_terms') or ai_result.get('negative_terms'):
-            common_terms_data = {
-                'positive_terms': ai_result.get('positive_terms', []),
-                'negative_terms': ai_result.get('negative_terms', [])
-            }
-        else:
-            common_terms_data = extract_common_terms(reviews_data)
+        # Use observed phrases and review counts, never generated keyword lists.
+        common_terms_data = extract_common_terms(reviews_data)
 
         # Executive synthesis summary from BART
         if ai_result.get('summary'):
@@ -281,7 +277,7 @@ def analyze_product():
         product = Product(
             product_id=product_id,
             name=product_data['name'],
-            url=url,
+            url=canonical_url,
             retailer=product_data['retailer'],
             price=product_data.get('price'),
             image_url=product_data.get('image_url'),
@@ -321,7 +317,7 @@ def analyze_product():
                 helpful_count=review_data.get('helpful_count', 0),
                 sentiment=review_data.get('sentiment'),
                 sentiment_score=review_data.get('score', 0),
-                review_date=datetime.utcnow()
+                review_date=parse_review_date(review_data.get('date'))
             )
             db.session.add(review)
         
@@ -346,8 +342,13 @@ def analyze_product():
             'productId': product_id,
             'product': product.to_dict(),
             'analysis_source': ai_source,
+            'quality': {**review_quality(reviews_data, ai_source), **cleaning_stats},
         }), 201
         
+    except ScrapingError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 422
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

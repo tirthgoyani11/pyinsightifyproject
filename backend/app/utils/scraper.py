@@ -3,12 +3,13 @@ Enhanced Web Scraper for Amazon, Flipkart, and Other Retailers
 Supports real product data extraction, short URL resolution, review highlights,
 portal pagination, variation harvesting, and robust sentiment extraction.
 """
+import html
 import re
 import time
 import random
 import logging
 import json
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from typing import Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
@@ -30,9 +31,14 @@ USER_AGENTS = [
 ]
 
 
+class ScrapingError(ValueError):
+    """The retailer did not provide usable real product data."""
+
+
 def _resolve_short_url(session: requests.Session, url: str, timeout: int = 10) -> str:
-    """Resolve amzn.in / a.co / amzn.to short links to the canonical Amazon URL."""
-    if any(d in url for d in ('amzn.in', 'a.co', 'amzn.to', 'bit.ly', 'tinyurl.com')):
+    """Resolve known retailer share links using their HTTP redirects."""
+    host = (urlparse(url).hostname or '').lower()
+    if host in ('amzn.in', 'a.co', 'amzn.to', 'bit.ly', 'tinyurl.com', 'dl.flipkart.com'):
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -40,9 +46,12 @@ def _resolve_short_url(session: requests.Session, url: str, timeout: int = 10) -
                 'Accept-Language': 'en-IN,en;q=0.9',
             }
             resp = session.get(url, allow_redirects=True, stream=True, timeout=timeout, headers=headers)
-            if resp.url and resp.url != url:
-                logger.info("Resolved short URL %s -> %s", url, resp.url)
-                return resp.url
+            try:
+                if resp.url and resp.url != url:
+                    logger.info("Resolved short URL %s -> %s", url, resp.url)
+                    return resp.url
+            finally:
+                resp.close()
         except Exception as exc:
             logger.warning("Failed to resolve short URL %s: %s", url, exc)
     return url
@@ -52,6 +61,7 @@ def _clean_text(text: str) -> str:
     """Strip Amazon boilerplate artifacts, whitespace, and buttons."""
     if not text:
         return ""
+    text = html.unescape(html.unescape(text))
     text = re.sub(r'Brief content visible, double tap to read full content\.?', '', text, flags=re.IGNORECASE)
     text = re.sub(r'Full content visible, double tap to read brief content\.?', '', text, flags=re.IGNORECASE)
     text = re.sub(r'Read moreRead less', '', text, flags=re.IGNORECASE)
@@ -75,7 +85,7 @@ def _rotate_ua(session: requests.Session) -> None:
         'User-Agent': ua,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-IN,en-US;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Encoding': requests.utils.DEFAULT_ACCEPT_ENCODING,
         'DNT': '1',
         'Upgrade-Insecure-Requests': '1',
     })
@@ -136,7 +146,7 @@ class AmazonScraper(BaseScraper):
             'User-Agent': random.choice(USER_AGENTS),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-IN,en-US;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': requests.utils.DEFAULT_ACCEPT_ENCODING,
             'DNT': '1',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
@@ -169,7 +179,7 @@ class AmazonScraper(BaseScraper):
         if not resp or resp.status_code != 200:
             logger.warning("Failed to fetch product detail page for %s", target_url)
             pname = _product_name_from_url(resolved_url)
-            return self._generate_mock_product(target_url, pname, asin)
+            raise ScrapingError('Amazon could not return this product. Please check the link or try again shortly.')
 
         soup = BeautifulSoup(resp.content, 'lxml')
 
@@ -368,22 +378,17 @@ class AmazonScraper(BaseScraper):
                     if len(text) < 8:
                         continue
 
-                    # Calibrate rating from explicit customer wording
-                    norm = text.lower()
-                    rating = 4.0
-                    if any(w in norm for w in ['worst', 'waste', 'pathetic', 'bad', 'faulty', 'lint', 'unstiched', 'unstitched', 'stained', 'dirty', 'broken', 'crack', 'loose', 'tear', 'torn', 'dull', 'poor', 'not good', 'disappointed', 'faded']):
-                        rating = 1.0
-                    elif any(w in norm for w in ['good', 'love', 'comfortable', 'comfy', 'worth', 'nice', 'perfect', 'amazing', 'superb', 'smooth', 'excellent', 'best', 'stylish']):
-                        rating = 5.0
+                    # Excerpts do not disclose the author's rating or verification.
+                    rating = None
 
                     _add_review({
-                        'user': f'Verified Buyer ({aspect_name})',
-                        'author': f'Verified Buyer ({aspect_name})',
+                        'user': f'Customer excerpt ({aspect_name})',
+                        'author': f'Customer excerpt ({aspect_name})',
                         'rating': rating,
                         'title': f'{aspect_name} Feedback',
                         'text': text,
-                        'date': 'Verified Purchase',
-                        'verified': True,
+                        'date': '',
+                        'verified': False,
                         'aspect': aspect_name,
                         'source': 'real',
                     })
@@ -418,8 +423,8 @@ class AmazonScraper(BaseScraper):
             return reviews[:max_reviews]
 
         # Emergency fallback: If Amazon completely blocked the request or zero reviews existed
-        logger.warning("No real reviews extracted for %s. Generating fallback reviews.", url)
-        return self._generate_mock_reviews(min(max_reviews, 15), pname)
+        logger.warning("No real reviews extracted for %s. Returning no reviews.", url)
+        return []
 
     def _parse_review_card(self, card) -> Optional[Dict]:
         """Parse individual Amazon review card element with all modern selector variants."""
@@ -428,7 +433,7 @@ class AmazonScraper(BaseScraper):
             user = user_el.get_text(strip=True) if user_el else "Amazon Customer"
 
             star_el = card.find(attrs={'data-hook': re.compile(r'star', re.I)}) or card.find(class_='a-icon-star')
-            rating = 4.0
+            rating = None
             if star_el:
                 m = re.search(r'(\d+(?:\.\d+)?)', star_el.get_text())
                 if m:
@@ -495,115 +500,192 @@ class AmazonScraper(BaseScraper):
 # ---------------------------------------------------------------------------
 
 class FlipkartScraper(BaseScraper):
-    """Flipkart product + review scraper."""
+    """Read product schema and review state from Flipkart's server-rendered pages."""
 
     RETAILER = 'Flipkart'
 
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update({
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-IN,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-        })
+        self.session.headers.update({'Accept-Language': 'en-IN,en;q=0.9'})
+
+    @staticmethod
+    def _canonical_url(url):
+        parsed = urlparse(url)
+        host = (parsed.hostname or '').lower()
+        if host != 'flipkart.com' and not host.endswith('.flipkart.com'):
+            raise ScrapingError('The Flipkart link did not resolve to a Flipkart product.')
+        path = parsed.path.removeprefix('/dl') if parsed.path.startswith('/dl/') else parsed.path
+        path = path.replace('/product-reviews/', '/p/', 1)
+        if not re.search(r'/p/itm[\w]+', path):
+            raise ScrapingError('Could not resolve the Flipkart product link. Please paste the full product URL.')
+        pid = parse_qs(parsed.query).get('pid', [''])[0]
+        return urlunparse(('https', 'www.flipkart.com', path, '', urlencode({'pid': pid}) if pid else '', ''))
+
+    def _fetch_product(self, url):
+        resolved = _resolve_short_url(self.session, url)
+        target = self._canonical_url(resolved)
+        response = _request_with_retry(self.session, target)
+        if response is None or response.status_code != 200:
+            raise ScrapingError('Flipkart could not be reached. Please try again with the full product link.')
+        canonical = self._canonical_url(response.url or target)
+        return BeautifulSoup(response.content, 'lxml'), canonical
+
+    @staticmethod
+    def _walk(value):
+        """Traverse decoded JSON only; never execute scripts from the retailer."""
+        if isinstance(value, dict):
+            yield value
+            for child in value.values():
+                yield from FlipkartScraper._walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from FlipkartScraper._walk(child)
+
+    @staticmethod
+    def _state(soup):
+        script = soup.find('script', id='is_script')
+        if script:
+            match = re.search(r'window\.__INITIAL_STATE__\s*=\s*', script.get_text())
+            if match:
+                try:
+                    return json.JSONDecoder().raw_decode(script.get_text()[match.end():])[0]
+                except (ValueError, TypeError):
+                    pass
+        return {}
+
+    @classmethod
+    def _product_schema(cls, soup):
+        for script in soup.select('script[type="application/ld+json"]'):
+            try:
+                data = json.loads(script.get_text())
+            except (ValueError, TypeError):
+                continue
+            for node in cls._walk(data):
+                types = node.get('@type', [])
+                if types == 'Product' or isinstance(types, list) and 'Product' in types:
+                    return node
+        return {}
+
+    @staticmethod
+    def _text(soup, selectors):
+        for selector in selectors:
+            element = soup.select_one(selector)
+            if element and element.get_text(strip=True):
+                return element.get_text(' ', strip=True)
+        return ''
 
     def scrape_product(self, url: str) -> Dict:
-        resp = _request_with_retry(self.session, url)
-        if not resp or resp.status_code != 200:
-            return self._mock_product(url)
-
-        soup = BeautifulSoup(resp.content, 'lxml')
-        name = self._extract_text(soup, ['span.B_NuCI', 'h1.yhB1nd', 'h1', 'span[class*="B_NuCI"]']) or _product_name_from_url(url)
-        price = self._extract_number_text(soup, ['div._30jeq3._16Jk6d', 'div._30jeq3', 'div[class*="_30jeq3"]']) or 1499.0
-        rating = self._extract_number_text(soup, ['div._3LWZlK', 'div[class*="_3LWZlK"]']) or 4.1
-        review_count = int(self._extract_number_text(soup, ['span._2_R_DZ', 'span[class*="_2_R_DZ"]']) or 120)
-
-        img = soup.find('img', class_=re.compile(r'_396cs4|_2r_T1I|CXW8mj'))
-        image = img.get('src', '') if img else 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'
-
+        soup, canonical = self._fetch_product(url)
+        schema = self._product_schema(soup)
+        name = schema.get('name') or self._text(soup, ['span.VU-ZEz', 'span.B_NuCI', 'h1.yhB1nd', 'h1'])
+        if not name:
+            raise ScrapingError('Flipkart did not return product details. Please check the product link and try again.')
+        offers = schema.get('offers') or {}
+        if isinstance(offers, list):
+            offers = next((offer for offer in offers if isinstance(offer, dict)), {})
+        aggregate = schema.get('aggregateRating') or {}
+        image = schema.get('image') or ''
+        if isinstance(image, list):
+            image = image[0] if image else ''
+        if isinstance(image, dict):
+            image = image.get('url', '')
+        if not image:
+            meta = soup.select_one('meta[property="og:image"]')
+            image = meta.get('content', '') if meta else ''
         return {
-            'name': name.strip(),
-            'price': price,
-            'rating': rating,
-            'total_reviews': review_count,
-            'rating_count': review_count,
-            'image_url': image,
-            'retailer': 'Flipkart',
-            'url': url,
+            'name': _clean_text(name),
+            'price': _extract_number(str(offers.get('price') or offers.get('lowPrice') or self._text(soup, ['div.Nx9bqj.CxhGGd', 'div._30jeq3._16Jk6d']))),
+            'rating': _extract_number(str(aggregate.get('ratingValue') or self._text(soup, ['div.XQDdHH', 'div._3LWZlK']))),
+            'total_reviews': int(_extract_number(str(aggregate.get('reviewCount', 0)))),
+            'rating_count': int(_extract_number(str(aggregate.get('ratingCount', 0)))),
+            'image_url': image, 'retailer': 'Flipkart', 'url': canonical,
             'overall_summary': None,
-            'availability': 'In Stock',
-            'category': 'Electronics',
+            'availability': str(offers.get('availability') or '').rsplit('/', 1)[-1] or None,
+            'category': schema.get('category') or 'General',
         }
 
-    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
-        resp = _request_with_retry(self.session, url)
-        if not resp or resp.status_code != 200:
-            return _generate_mock_reviews(min(max_reviews, 15), product_name)
-
-        soup = BeautifulSoup(resp.content, 'lxml')
+    @classmethod
+    def _parse_reviews(cls, soup):
         reviews = []
-        review_cards = soup.find_all('div', class_=re.compile(r'_16PBlm|_27M-vq|col\s+col-12-12'))
-        for card in review_cards:
-            if len(reviews) >= max_reviews:
-                break
-            text_el = card.find('div', class_=re.compile(r't-ZTKy|qwjWbk'))
-            if not text_el:
+        # Current Flipkart pages carry real reviews in the server-rendered state.
+        for node in cls._walk(cls._state(soup)):
+            if node.get('type') != 'ProductReviewValue':
                 continue
-            text = _clean_text(text_el.get_text(separator=' ', strip=True))
-            if len(text) < 8:
+            text = _clean_text(node.get('text') or '')
+            if not text:
                 continue
-
-            star_el = card.find('div', class_=re.compile(r'_3LWZlK|_1BLPMq'))
-            rating = _extract_number(star_el.get_text()) if star_el else 4.0
-
-            title_el = card.find('p', class_=re.compile(r'_2-N8zT'))
-            title = title_el.get_text(strip=True) if title_el else ""
-
-            user_el = card.find('p', class_=re.compile(r'_2sc7ZR'))
-            user = user_el.get_text(strip=True) if user_el else "Flipkart Customer"
-
-            reviews.append({
-                'user': user,
-                'author': user,
-                'rating': rating,
-                'title': title,
-                'text': text,
-                'date': 'Verified Purchase',
-                'verified': True,
-                'source': 'real',
-            })
-
+            author = node.get('author') or 'Flipkart Customer'
+            reviews.append({'review_id': node.get('id'), 'user': author, 'author': author,
+                            'rating': _extract_number(str(node.get('rating') or 0)),
+                            'title': _clean_text(node.get('title') or ''), 'text': text,
+                            'date': node.get('created') or '', 'verified': bool(node.get('certifiedBuyer')),
+                            'helpful_count': node.get('helpfulCount') or 0, 'source': 'real'})
         if reviews:
             return reviews
-        return _generate_mock_reviews(min(max_reviews, 15), product_name)
+        # Product-page JSON-LD is a useful fallback when review pagination is unavailable.
+        schema_reviews = cls._product_schema(soup).get('review') or []
+        if isinstance(schema_reviews, dict):
+            schema_reviews = [schema_reviews]
+        for review in schema_reviews:
+            text = _clean_text(review.get('reviewBody') or '')
+            if not text:
+                continue
+            author = review.get('author') or {}
+            author = author.get('name', 'Flipkart Customer') if isinstance(author, dict) else str(author)
+            reviews.append({'author': author, 'user': author, 'text': text,
+                            'title': review.get('name') or '',
+                            'rating': _extract_number(str((review.get('reviewRating') or {}).get('ratingValue', 0))),
+                            'date': review.get('datePublished') or '', 'verified': False, 'source': 'real'})
+        if reviews:
+            return reviews
+        # Older pages still use the classic review card markup.
+        for card in soup.select('div._27M-vq, div._16PBlm, div.col.col-12-12'):
+            text = _clean_text(cls._text(card, ['div.ZmyHeo', 'div.t-ZTKy', 'div.qwjWbk']))
+            if not text:
+                continue
+            author = cls._text(card, ['p._2NsDsF', 'p._2sc7ZR']) or 'Flipkart Customer'
+            reviews.append({'author': author, 'user': author, 'text': text,
+                            'title': cls._text(card, ['p.z9E0IG', 'p._2-N8zT']),
+                            'rating': _extract_number(cls._text(card, ['div.XQDdHH', 'div._3LWZlK', 'div._1BLPMq'])),
+                            'date': '', 'verified': 'Certified Buyer' in card.get_text(), 'source': 'real'})
+        return reviews
 
-    def _extract_text(self, soup, selectors):
-        for s in selectors:
-            el = soup.select_one(s)
-            if el and el.get_text(strip=True):
-                return el.get_text(strip=True)
-        return None
+    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+        if max_reviews <= 0:
+            return []
+        soup, canonical = self._fetch_product(url)
+        reviews, seen = [], {}
 
-    def _extract_number_text(self, soup, selectors):
-        txt = self._extract_text(soup, selectors)
-        return _extract_number(txt) if txt else None
+        def append_unique(items):
+            before = len(reviews)
+            for review in items:
+                key = (_clean_text(review['author']).casefold(), review['text'].casefold())
+                if key not in seen:
+                    seen[key] = review
+                    reviews.append(review)
+                    if len(reviews) >= max_reviews:
+                        break
+                elif review.get('review_id'):
+                    seen[key].update(review)
+            return len(reviews) - before
 
-    def _mock_product(self, url: str) -> Dict:
-        return {
-            'name': _product_name_from_url(url),
-            'price': 999.0,
-            'rating': 4.0,
-            'total_reviews': 100,
-            'rating_count': 100,
-            'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
-            'retailer': 'Flipkart',
-            'url': url,
-            'overall_summary': None,
-            'availability': 'In Stock',
-            'category': 'General',
-        }
+        append_unique(self._parse_reviews(soup))
+        parsed = urlparse(canonical)
+        review_path = parsed.path.replace('/p/', '/product-reviews/', 1)
+        query = parse_qs(parsed.query)
+        # Bound requests and stop when Flipkart repeats a page or has no more reviews.
+        for page in range(1, min(10, (max_reviews + 9) // 10) + 1):
+            if len(reviews) >= max_reviews:
+                break
+            params = {'pid': query['pid'][0]} if query.get('pid') else {}
+            params['page'] = page
+            review_url = urlunparse(('https', 'www.flipkart.com', review_path, '', urlencode(params), ''))
+            response = _request_with_retry(self.session, review_url, max_retries=1)
+            if response is None:
+                break
+            if not append_unique(self._parse_reviews(BeautifulSoup(response.content, 'lxml'))):
+                break
+        return reviews[:max_reviews]
 
 
 # ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import json
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import Product, Review
+from app.utils.review_quality import review_quality
 from app.utils.sentiment import extract_common_terms
 
 bp = Blueprint('analysis', __name__)
@@ -29,35 +30,23 @@ def get_analysis(product_id):
         # Get topics
         topics = product.topics.all()
 
-        # Prioritize saved transformer common terms
-        common_terms = None
-        if getattr(product, 'common_terms', None):
-            try:
-                common_terms = json.loads(product.common_terms)
-            except Exception:
-                common_terms = None
-
-        if not common_terms or not (common_terms.get('positive_terms') or common_terms.get('negative_terms')):
-            review_dicts = [r.to_dict() for r in reviews]
-            common_terms = extract_common_terms(review_dicts, limit=10)
+        # Recompute evidence from stored review text so older reports lose noisy keywords too.
+        review_dicts = [r.to_dict() for r in reviews]
+        common_terms = extract_common_terms(review_dicts, limit=10)
 
         # Sort samples to present the most informative reviews
         sorted_positive = sorted(
             positive_reviews,
-            key=lambda x: (x.rating or 5, x.sentiment_score or 0.0),
+            key=lambda x: (min(len((x.text or '').split()), 80), x.helpful_count or 0),
             reverse=True
         )
         sorted_negative = sorted(
-            negative_reviews if negative_reviews else [r for r in reviews if r.rating and r.rating <= 3],
-            key=lambda x: (-(x.rating or 1), x.sentiment_score or 0.0)
+            negative_reviews,
+            key=lambda x: (min(len((x.text or '').split()), 80), x.helpful_count or 0), reverse=True
         )
 
-        source = getattr(product, 'analysis_source', None) or 'roberta-bart-ensemble'
-        if source in ('groq', 'ai', 'gemini'):
-            source = 'roberta-bart-ensemble'
-        elif source == 'local':
-            source = 'roberta-lite-heuristic'
-        
+        source = getattr(product, 'analysis_source', None) or 'unknown'
+
         return jsonify({
             'success': True,
             'analysis_source': source,
@@ -84,6 +73,7 @@ def get_analysis(product_id):
                 'specs_data': (json.loads(product.specs_data) if getattr(product, 'specs_data', None) else []),
                 'buyer_guide': (json.loads(product.buyer_guide) if getattr(product, 'buyer_guide', None) else None),
                 'common_terms': common_terms,
+                'quality': review_quality(review_dicts, source),
                 'reviews': {
                     'total': product.total_reviews,
                     'rating': product.rating,

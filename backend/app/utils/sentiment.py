@@ -9,6 +9,7 @@ Pipeline per review:
   4. Star-rating calibration
   5. Signal fusion → sentiment / score / confidence / aspects
 """
+from .review_quality import clean_review_text
 import math
 import re
 import statistics
@@ -210,6 +211,7 @@ _WORD_RE = re.compile(r"[a-z']+")
 
 def _normalise(text: str) -> str:
     """Lowercase and unify apostrophes so 'don't' / 'dont' both tokenise cleanly."""
+    text = clean_review_text(text)
     text = text.replace('’', "'").replace('‘', "'")
     text = text.replace('`', "'")
     return text.lower()
@@ -241,7 +243,7 @@ class SentimentAnalyzer:
         if not text or not isinstance(text, str) or not text.strip():
             return self._neutral_result()
 
-        text = text.strip()
+        text = clean_review_text(text)
         tokens = _tokenise(text)
         if not tokens:
             return self._neutral_result()
@@ -260,7 +262,8 @@ class SentimentAnalyzer:
         else:
             sentiment = 'neutral'
 
-        aspects = self._aspect_sentiment(tokens, rating)
+        clauses = [_tokenise(clause) for clause in re.split(r'[.!?;]+|\b(?:but|however|although|yet)\b', text, flags=re.I) if clause.strip()]
+        aspects = self._aspect_sentiment(tokens, rating, clauses)
 
         return {
             'sentiment': sentiment,
@@ -312,16 +315,16 @@ class SentimentAnalyzer:
                 pos_n = pos / total_pct
                 neg_n = neg / total_pct
             else:
-                pos_n, neg_n = 0.7, 0.1
+                pos_n, neg_n = 0.0, 0.0
             sentiment_part = max(0.0, min(40.0, (pos_n - 0.5 * neg_n) * 50))
 
             # Volume: logarithmic — 10 reviews → ~7.5, 100 → ~15
             vol = float(total_reviews or 0)
             volume_part = min(15.0, math.log10(vol + 1) / 2.0 * 15.0) if vol > 0 else 0.0
 
-            return round(min(max(rating_part + sentiment_part + volume_part, 30), 99), 1)
+            return round(min(max(rating_part + sentiment_part + volume_part, 0), 100), 1)
         except Exception:
-            return 75.0
+            return 0.0
 
     def extract_topics(self, reviews: list, top_n: int = 6) -> list:
         """Rank aspects by mention volume, with net sentiment per aspect."""
@@ -334,14 +337,13 @@ class SentimentAnalyzer:
                 continue
 
             res = self.analyze_text(text, rating)
-            mentioned = self._mentioned_aspects(tokens)
-
-            for name in mentioned:
+            for aspect in res['aspects']:
+                name = aspect['name']
                 b = buckets.setdefault(name, {'scores': [], 'ratings': [], 'pos': 0, 'neg': 0})
-                b['scores'].append(res['score'])
-                if res['sentiment'] == 'positive':
+                b['scores'].append(aspect['score'])
+                if aspect['sentiment'] == 'positive':
                     b['pos'] += 1
-                elif res['sentiment'] == 'negative':
+                elif aspect['sentiment'] == 'negative':
                     b['neg'] += 1
                 if rating:
                     b['ratings'].append(float(rating))
@@ -559,16 +561,13 @@ class SentimentAnalyzer:
             r = None
 
         if r is not None and has_text:
-            combined = 0.65 * text_signal + 0.35 * rating
-            # Star rating is an explicit, strong signal — nudge agreement
-            if r <= 2.0 and combined > -0.20:
-                combined = min(combined - 0.20, -0.22)
-            elif r >= 4.0 and combined < 0.20:
-                combined = max(combined + 0.20, 0.22)
-        elif r is not None:
+            combined = 0.85 * text_signal + 0.15 * rating
+            if abs(text_signal) >= 0.25 and text_signal * rating < 0:
+                combined = text_signal
+        elif r is not None and not text_signal:
             combined = rating
         else:
-            combined = text_signal
+            combined = 0.9 * text_signal + 0.1 * rating if r is not None else text_signal
 
         return max(-1.0, min(1.0, combined))
 
@@ -615,7 +614,7 @@ class SentimentAnalyzer:
                 return True
         return False
 
-    def _aspect_sentiment(self, tokens: list, rating=None) -> list:
+    def _aspect_sentiment(self, tokens: list, rating=None, clauses=None) -> list:
         """Aspects in this review, each with its own locally-scored sentiment.
 
         Scores the sentence/clause containing the aspect keyword rather than
@@ -626,7 +625,7 @@ class SentimentAnalyzer:
             return []
 
         # Split into clauses on contrast markers and sentence punctuation
-        clauses = self._split_clauses(tokens)
+        clauses = clauses or self._split_clauses(tokens)
         rating_score = self._rating_score(rating)
         results = []
 
@@ -720,37 +719,52 @@ def calculate_specs(reviews: list) -> dict:
     return analyzer.calculate_specs(reviews)
 
 
-def extract_common_terms(reviews: list, limit: int = 8) -> dict:
-    """Extract meaningful frequent terms, split by sentiment, as display words."""
-    pos_counter, neg_counter = Counter(), Counter()
+_TERM_NOISE = _STOPWORDS | {'good', 'great', 'best', 'worst', 'nice', 'bad', 'excellent', 'really', 'like',
+    'much', 'well', 'even', 'still', 'only', 'dont', 'cant', 'rsquo', 'lsquo', 'quot', 'amp', 'nbsp',
+    'laptop', 'phone', 'bag', 'online', 'thanks', 'thank', 'awesome', 'super', 'money', 'price'}
 
-    for r in reviews:
-        text = r.get('text', '') if isinstance(r, dict) else str(r)
-        rating = r.get('rating') if isinstance(r, dict) else None
+
+def extract_common_terms(reviews: list, limit: int = 8) -> dict:
+    """Rank observed phrases by review frequency, with traceable supporting text."""
+    buckets = {'positive': {}, 'negative': {}}
+    for review in reviews:
+        record = review if isinstance(review, dict) else {'text': str(review)}
+        text = clean_review_text(record.get('text'))
         if not text:
             continue
-
-        res = analyzer.analyze_text(text, rating)
-        tokens = [t for t in _tokenise(text)
-                  if len(t) > 3 and t not in _STOPWORDS]
-
-        if res['sentiment'] == 'positive':
-            pos_counter.update(tokens)
-        elif res['sentiment'] == 'negative':
-            neg_counter.update(tokens)
-        elif rating:
-            try:
-                if float(rating) >= 4:
-                    pos_counter.update(tokens)
-                elif float(rating) <= 2:
-                    neg_counter.update(tokens)
-            except (TypeError, ValueError):
-                pass
-
-    pos_terms = [w for w, c in pos_counter.most_common(limit * 2) if c >= 2][:limit]
-    neg_terms = [w for w, c in neg_counter.most_common(12) if c >= 2][:6]
-
-    return {
-        'positive_terms': pos_terms or ['quality', 'performance', 'reliable', 'comfortable', 'value'],
-        'negative_terms': neg_terms or ['issues', 'concerns', 'quality'],
-    }
+        sentiment = str(record.get('sentiment') or '').lower()
+        if sentiment not in ('positive', 'negative', 'neutral'):
+            sentiment = analyzer.analyze_text(text, record.get('rating'))['sentiment']
+        if sentiment not in buckets:
+            continue
+        # Preserve phrase boundaries and count a phrase only once per review.
+        candidates = set()
+        for clause in re.split(r'[.!?;,]+', text):
+            tokens = _tokenise(clause)
+            for left, right in zip(tokens, tokens[1:]):
+                phrase = left + ' ' + right
+                if (len(left) > 2 and len(right) > 2 and left not in _STOPWORDS and right not in _STOPWORDS
+                        and left not in {'rsquo', 'lsquo', 'quot', 'nbsp', 'amp'}
+                        and right not in {'rsquo', 'lsquo', 'quot', 'nbsp', 'amp'}
+                        and any(word not in _TERM_NOISE for word in (left, right))):
+                    candidates.add(phrase)
+            candidates.update(word for word in tokens if len(word) > 3 and word not in _TERM_NOISE)
+        for term in candidates:
+            bucket = buckets[sentiment].setdefault(term, {'term': term, 'count': 0, 'examples': []})
+            bucket['count'] += 1
+            if len(bucket['examples']) < 2:
+                bucket['examples'].append(text[:240])
+    result = {}
+    for sentiment, entries in buckets.items():
+        ranked = sorted((entry for entry in entries.values() if entry['count'] >= 2),
+                        key=lambda entry: (-entry['count'], -len(entry['term'].split()), entry['term']))
+        selected = []
+        for entry in ranked:
+            if len(entry['term'].split()) == 1 and any(entry['term'] in other['term'].split() for other in selected):
+                continue
+            selected.append(entry)
+            if len(selected) == limit:
+                break
+        result[sentiment + '_terms'] = [entry['term'] for entry in selected]
+        result[sentiment + '_evidence'] = selected
+    return result
