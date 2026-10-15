@@ -13,8 +13,9 @@
   <link rel="stylesheet" href="css/loading.css">
   <link rel="icon" type="image/png" href="images/favicon.png">
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/responsive.css">
 </head>
-<body>
+<body class="home-page">
   <!-- Fullscreen WebGL Simplex Noise & Bayer Dither Shader Canvas (@componentry/hero-geometric) -->
   <canvas id="heroGeometricCanvas" class="hero-geometric-canvas-fullscreen"></canvas>
   
@@ -91,12 +92,6 @@
     
     
     <div class="hero-geometric-content">
-      <!-- Pill Badge -->
-      <div class="hero-geometric-badge">
-        <span class="badge-dot"></span>
-        <span>Insightify AI · Product Intelligence</span>
-      </div>
-
       <!-- Componentry Editorial Headline -->
       <div class="hero-geometric-headline">
         <h1 class="hero-title-line line-1">Go Beyond Ratings</h1>
@@ -142,11 +137,11 @@
       </div>
 
       <!-- Quick Demo Links (Pill Chips) -->
-      <div class="demo-links">
+      <div class="demo-links" role="group" aria-label="Try a sample product">
         <span class="demo-label">Try a sample:</span>
-        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B0DKJTPLG7">📱 Smartphone</button>
-        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B0CX21C4MD">💻 Laptop</button>
-        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B09G96TFF7">🎧 Headphones</button>
+        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B0DKJTPLG7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10 5h4M11 18.5h2"/></svg><span>Smartphone</span></button>
+        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B0CX21C4MD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="m4 16-2 4h20l-2-4M9 20h6"/></svg><span>Laptop</span></button>
+        <button type="button" class="demo-pill" data-url="https://www.amazon.in/dp/B09G96TFF7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="12" width="4" height="8" rx="2"/><rect x="17" y="12" width="4" height="8" rx="2"/></svg><span>Headphones</span></button>
       </div>
     </div>
   </section>

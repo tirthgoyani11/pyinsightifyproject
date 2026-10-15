@@ -7,6 +7,17 @@
   function initHeroGeometric() {
     const canvas = document.getElementById('heroGeometricCanvas');
     if (!canvas) return;
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    if (reducedMotion.matches) {
+      const resume = () => {
+        if (!reducedMotion.matches) {
+          reducedMotion.removeEventListener('change', resume);
+          initHeroGeometric();
+        }
+      };
+      reducedMotion.addEventListener('change', resume);
+      return;
+    }
 
     const gl = canvas.getContext('webgl', { antialias: false, alpha: true }) || 
                canvas.getContext('experimental-webgl', { antialias: false, alpha: true });
@@ -223,7 +234,7 @@
     const startTime = performance.now();
 
     function render(now) {
-      if (!document.hidden) {
+      if (!document.hidden && !reducedMotion.matches) {
         resize();
         const elapsedTime = (now - startTime) * 0.001 * 1.0; // speed = 1.0
         
