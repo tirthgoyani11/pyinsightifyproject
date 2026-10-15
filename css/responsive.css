@@ -21,7 +21,7 @@
 
 @media (min-width: 768px) {
   /* Rebalance the hero after removing the introductory badge. */
-  .home-page .hero-geometric-section { padding: 148px 24px 62px; }
+  .home-page .hero-geometric-section { padding: 184px 24px 26px; }
 }
 
 @media (max-width: 767px) {
@@ -31,10 +31,10 @@
   .review-comparison > *, .specs-grid > *, .buyer-guide-grid > * { min-width: 0; }
   input, select, textarea { max-width: 100%; font-size: 16px; }
 
-  .home-page .hero-geometric-section { min-height: auto; padding: 96px 16px 36px; }
-  .home-page .hero-title-line { font-size: clamp(30px, 8.2vw, 48px); line-height: 1.12; letter-spacing: -.025em; overflow-wrap: break-word; }
-  .home-page .hero-geometric-headline { gap: 5px; margin-bottom: 20px; }
-  .home-page .hero-geometric-description { font-size: 15px; line-height: 1.65; margin-bottom: 24px; color: #4d6077; }
+  .home-page .hero-geometric-section { min-height: auto; padding: 150px 16px 52px; }
+  .home-page .hero-title-line { font-size: clamp(32px, 10.2vw, 40px); line-height: 1.05; letter-spacing: -.025em; overflow-wrap: break-word; }
+  .home-page .hero-geometric-headline { gap: 5px; margin-bottom: 28px; }
+  .home-page .hero-geometric-description { font-size: 17px; line-height: 1.5; margin-bottom: 36px; color: #4d6077; }
   .home-page .hero-geometric-search-wrapper { margin-bottom: 18px; }
   .home-page .hero-geometric-input-card { flex-direction: column; padding: 10px; border-radius: 18px !important; gap: 8px; }
   .home-page .hero-input-field { width: 100%; min-width: 0; padding: 0 5px; gap: 8px; }
@@ -182,9 +182,9 @@
   .mobile-report-panel .buyer-guide-card > div:first-child > .badge,
   .mobile-report-panel .nlp-summary-card > div:first-child > .badge { display: none; }
   .mobile-report-panel .aspect-method-note { font-size: 10px; line-height: 1.7; margin-bottom: 16px; }
-  .mobile-report-panel .spec-item-card { min-width: 0; padding: 13px 11px !important; background: linear-gradient(135deg,#fff,#eef5fa9c); border-radius: 13px !important; }
-  .mobile-report-panel .spec-header { flex-wrap: wrap; gap: 7px; }
-  .mobile-report-panel .spec-label { font-size: 13px !important; line-height: 1.45; overflow-wrap: anywhere; }
+  .mobile-report-panel .spec-item-card { min-width: 0; padding: 13px 11px !important; background: linear-gradient(135deg,#fff,#eef5fa9c); border-radius: 13px !important; justify-content: flex-start !important; gap: 10px; }
+  .mobile-report-panel .spec-header { flex-direction: column; align-items: flex-start !important; gap: 7px; }
+  .mobile-report-panel .spec-label { font-size: 13px !important; line-height: 1.45; min-height: 38px; overflow-wrap: anywhere; }
   .mobile-report-panel .spec-val { font-size: 13px !important; }
   .mobile-report-panel .spec-summary { font-size: 11px !important; line-height: 1.6 !important; }
   .mobile-report-panel .guide-box { padding: 13px 11px !important; min-width: 0; }
@@ -194,9 +194,13 @@
   .mobile-report-panel .sentiment-card { padding: 20px 12px; }
   .mobile-report-panel .word-clouds { margin-top: 24px; }
   .mobile-report-panel .word-clouds-title { font-size: 24px; }
-  .mobile-report-panel .word-cloud-card { padding: 15px 10px !important; }
+  .mobile-report-panel .word-cloud-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 14px; align-items: start; }
+  .mobile-report-panel .word-cloud-card { padding: 18px 14px !important; }
   .mobile-report-panel .word-cloud-item { font-size: clamp(12px, 3.8vw, 18px) !important; }
-  .mobile-report-panel .word-cloud { gap: 8px; }
+  .mobile-report-panel .word-cloud { gap: 12px 14px !important; min-height: 0 !important; padding: 16px 8px !important; border: 0 !important; }
+  .mobile-report-panel .word-cloud-item .word-text { font-size: clamp(16px, var(--word-size, 22px), 25px) !important; }
+  .mobile-report-panel .word-cloud-count { font-size: 10px !important; flex-shrink: 0; white-space: nowrap; }
+  .mobile-report-panel .word-cloud-item { min-height: 36px; max-width: 100%; }
   .mobile-report-panel .cloud-heading { font-size: 21px !important; }
   .mobile-report-panel .review-quality-panel { margin-top: 20px; padding: 20px 16px; }
   .mobile-report-panel .quality-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
@@ -219,8 +223,7 @@
   .home-page .feature-card { padding: 20px 15px !important; }
   .home-page .feature-title { font-size: 18px; line-height: 1.3; }
   .home-page .feature-description { font-size: 12px; line-height: 1.65; }
-  .mobile-report-panel .specs-grid, .mobile-report-panel .buyer-guide-grid,
-  .mobile-report-panel .word-cloud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px; }
+  .mobile-report-panel .specs-grid, .mobile-report-panel .buyer-guide-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px; }
 }
 @media (max-width: 767px) {
   .mobile-report-workspace { scroll-margin-top: 64px; }
