@@ -372,8 +372,7 @@ class SentimentAnalyzer:
 
     def calculate_specs(self, reviews: list) -> dict:
         """Per-dimension 0-100 scores derived from aspect sentiment."""
-        default = {'quality': 65, 'value': 65, 'durability': 65,
-                   'features': 65, 'performance': 65, 'comfort': 65}
+        default = dict.fromkeys(('quality', 'value', 'durability', 'features', 'performance', 'comfort'))
 
         if not reviews:
             return default
@@ -401,10 +400,11 @@ class SentimentAnalyzer:
                 # blend with the global rating baseline so thin data stays sane
                 specs[spec] = round(0.75 * statistics.mean(mapped) + 0.25 * base, 1)
             else:
-                specs[spec] = round(base, 1)
+                specs[spec] = None
 
         for k in specs:
-            specs[k] = max(30.0, min(98.0, specs[k]))
+            if specs[k] is not None:
+                specs[k] = max(0.0, min(100.0, specs[k]))
         return specs
 
     def extract_common_terms(self, reviews: list, limit: int = 8) -> dict:
@@ -719,7 +719,7 @@ def calculate_specs(reviews: list) -> dict:
     return analyzer.calculate_specs(reviews)
 
 
-_TERM_NOISE = _STOPWORDS | {'good', 'great', 'best', 'worst', 'nice', 'bad', 'excellent', 'really', 'like',
+_TERM_NOISE = _STOPWORDS | set(POSITIVE_LEXICON) | set(NEGATIVE_LEXICON) | {'good', 'great', 'best', 'worst', 'nice', 'bad', 'excellent', 'really', 'like',
     'much', 'well', 'even', 'still', 'only', 'dont', 'cant', 'rsquo', 'lsquo', 'quot', 'amp', 'nbsp',
     'laptop', 'phone', 'bag', 'online', 'thanks', 'thank', 'awesome', 'super', 'money', 'price'}
 
@@ -739,6 +739,11 @@ def extract_common_terms(reviews: list, limit: int = 8) -> dict:
             continue
         # Preserve phrase boundaries and count a phrase only once per review.
         candidates = set()
+        all_tokens = _tokenise(text)
+        for patterns in ASPECT_PATTERNS.values():
+            for phrase in patterns:
+                if ' ' in phrase and analyzer._phrase_in_tokens(phrase.split(), all_tokens):
+                    candidates.add(phrase)
         for clause in re.split(r'[.!?;,]+', text):
             tokens = _tokenise(clause)
             for left, right in zip(tokens, tokens[1:]):

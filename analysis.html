@@ -6,6 +6,7 @@
   <meta name="description" content="Product Analysis Results - Insightify">
   <title>Analysis Results - Insightify</title>
 
+  <link rel="preload" href="fonts/CekyPops-Demo.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/design-system.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/pages.css">
@@ -151,7 +152,15 @@
 
       </div>
 
-      <!-- The review, distilled (BART-Summarizer) -->
+      <section class="review-quality-panel" aria-labelledby="qualityHeading">
+        <div class="quality-header"><div><span class="studio-eyebrow">UNDERSTAND THE EVIDENCE</span><h2 id="qualityHeading">Behind this analysis</h2></div><button type="button" class="btn btn-outline" id="refreshAnalysis">Refresh analysis ↻</button></div>
+        <div class="quality-metrics" id="qualityMetrics"></div>
+        <p id="qualitySource" class="quality-source"></p>
+        <p class="quality-note">Results describe the reviews retrieved, not every buyer. Retailer sorting can affect the sample. English-focused analysis may miss sarcasm and other languages.</p>
+        <p id="refreshStatus" role="status" class="quality-source"></p>
+      </section>
+
+      <!-- The review, distilled (Review synthesis) -->
       <div class="card nlp-summary-card liquid-glass-card" id="reportSummary" style="margin-bottom: var(--space-6); border-left: 4px solid var(--color-primary); ">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -159,7 +168,7 @@
             <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">The review, distilled</h3>
           </div>
           <span class="badge" style="background: var(--color-primary-light); color: var(--color-primary); border: 1px solid rgba(0, 102, 204, 0.2); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;">
-            BART-Summarizer
+            Review synthesis
           </span>
         </div>
         <p class="ai-summary-text" id="aiSummaryText" style="line-height: 1.6; color: var(--color-text-secondary); margin: 0; font-size: 0.95rem;">
@@ -179,6 +188,7 @@
             Domain-Specific Aspects
           </span>
         </div>
+        <p class="aspect-method-note">Scores describe sentiment in retrieved reviews, not laboratory measurements. Unmentioned aspects are left unscored.</p>
         <div class="specs-grid" id="specsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4);">
           <p class="text-secondary" style="padding: var(--space-4); text-align: center; grid-column: 1 / -1;">
             Extracting category-specific aspect dimensions...
@@ -186,7 +196,7 @@
         </div>
       </div>
 
-      <!-- Is it the right fit for you? (BART Recommendation) -->
+      <!-- Is it the right fit for you? (Buyer guidance) -->
       <div class="card buyer-guide-card liquid-glass-card" id="buyerGuideCard" style="margin-bottom: var(--space-6); background: #ffffff; border-top: 3px solid var(--color-primary);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -194,7 +204,7 @@
             <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Is it the right fit for you?</h3>
           </div>
           <span class="badge" style="background: var(--color-primary-light); color: var(--color-primary); border: 1px solid rgba(0, 102, 204, 0.2); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;">
-            BART Recommendation
+            Buyer guidance
           </span>
         </div>
 
@@ -221,7 +231,7 @@
         <div id="verdictBanner" style="background: #f8fafc; border-left: 4px solid var(--color-primary); border-radius: 6px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 10px;">
           <span style="font-size: 1.2rem; line-height: 1;">↗</span>
           <div style="flex: 1;">
-            <strong style="font-size: 0.88rem; color: #1e293b; display: block; margin-bottom: 2px;">Neural Model Verdict:</strong>
+            <strong style="font-size: 0.88rem; color: #1e293b; display: block; margin-bottom: 2px;">Review-based recommendation:</strong>
             <p id="verdictText" style="margin: 0; font-size: 0.92rem; color: var(--color-text-secondary); line-height: 1.5;">
               Generating neural purchasing recommendation...
             </p>
@@ -324,21 +334,23 @@
 
             <!-- Word Clouds Section -->
             <div class="word-clouds">
-              <h3 class="mb-6">Most Common Terms</h3>
+              <div class="word-clouds-header">
+                <div>
+                  <span class="studio-eyebrow">BUYER VOICE ANALYSIS</span>
+                  <h3 class="word-clouds-title">What buyers keep mentioning</h3>
+                  <p class="evidence-intro">Visual phrase cloud weighted by buyer frequency. Select any phrase to read the supporting reviews.</p>
+                </div>
+              </div>
               <div class="word-cloud-grid">
-                <div class="card">
-                  <h4 class="text-center mb-4">
-                    <span class="badge badge-positive">Positive Terms</span>
-                  </h4>
+                <div class="card word-cloud-card positive-card liquid-glass-card">
+                  <h4 class="cloud-heading positive-title">Positive</h4>
                   <div class="word-cloud positive-cloud" id="positiveWordCloud">
                     <p class="text-secondary" style="text-align: center; padding: var(--space-2);">Analyzing recurring positive terms...</p>
                   </div>
                 </div>
 
-                <div class="card">
-                  <h4 class="text-center mb-4">
-                    <span class="badge badge-negative">Negative Terms</span>
-                  </h4>
+                <div class="card word-cloud-card negative-card liquid-glass-card">
+                  <h4 class="cloud-heading negative-title">Negative</h4>
                   <div class="word-cloud negative-cloud" id="negativeWordCloud">
                     <p class="text-secondary" style="text-align: center; padding: var(--space-2);">Analyzing recurring complaint terms...</p>
                   </div>
@@ -397,6 +409,7 @@
                   </button>
                 </div>
 
+                <div class="review-checks"><label><input type="checkbox" id="verifiedOnly"> Verified purchases</label><label><input type="checkbox" id="disagreementOnly"> Stars disagree with text</label></div>
                 <select class="select" id="sortReviews">
                   <option value="helpful">Most Helpful</option>
                   <option value="recent">Most Recent</option>
@@ -456,7 +469,7 @@
           </p>
           <div class="footer-badge">
             <span class="footer-badge-dot"></span>
-            <span>Realtime RoBERTa + BART Neural Models</span>
+            <span>Review sentiment & aspect analysis</span>
           </div>
         </div>
 

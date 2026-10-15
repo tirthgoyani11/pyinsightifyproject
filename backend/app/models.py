@@ -2,6 +2,7 @@
 Database models for Insightify
 """
 from datetime import datetime
+from app.utils.review_quality import clean_review_text
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 
@@ -176,11 +177,11 @@ class Product(db.Model):
                 'negative': round(self.sentiment_negative, 1)
             },
             'specs': {
-                'quality': round(self.spec_quality, 1) if self.spec_quality else 75.0,
-                'value': round(self.spec_value, 1) if self.spec_value else 75.0,
-                'durability': round(self.spec_durability, 1) if self.spec_durability else 70.0,
-                'features': round(self.spec_features, 1) if self.spec_features else 80.0,
-                'performance': round(self.spec_performance, 1) if self.spec_performance else 78.0
+                'quality': round(self.spec_quality, 1) if self.spec_quality is not None else None,
+                'value': round(self.spec_value, 1) if self.spec_value is not None else None,
+                'durability': round(self.spec_durability, 1) if self.spec_durability is not None else None,
+                'features': round(self.spec_features, 1) if self.spec_features is not None else None,
+                'performance': round(self.spec_performance, 1) if self.spec_performance is not None else None
             },
             'specsData': (json.loads(self.specs_data) if getattr(self, 'specs_data', None) else []),
             'buyerGuide': (json.loads(self.buyer_guide) if getattr(self, 'buyer_guide', None) else None),
@@ -219,7 +220,7 @@ class Review(db.Model):
             'id': self.id,
             'author': self.author,
             'rating': self.rating,
-            'text': self.text,
+            'text': clean_review_text(self.text),
             'verified': self.verified,
             'helpful': self.helpful_count,
             'sentiment': self.sentiment,

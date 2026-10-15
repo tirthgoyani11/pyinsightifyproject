@@ -63,7 +63,8 @@ function autoDetectRetailer() {
 
   const detect = (val) => {
     if (!val) return;
-    const url = val.toLowerCase();
+    let url;
+    try { url = new URL(API.normalizeProductUrl(val)).hostname.toLowerCase(); } catch { return; }
     if (url.includes('amazon') || url.includes('amzn') || url.includes('a.co')) {
       retailerSelect.value = 'Amazon';
     } else if (url.includes('flipkart')) {
@@ -78,6 +79,7 @@ function autoDetectRetailer() {
   };
 
   urlInput.addEventListener('blur', function() {
+    try { this.value = API.normalizeProductUrl(this.value); } catch { /* Keep incomplete input editable. */ }
     detect(this.value);
   });
   urlInput.addEventListener('input', function() {

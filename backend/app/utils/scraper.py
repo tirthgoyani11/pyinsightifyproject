@@ -522,6 +522,7 @@ class FlipkartScraper(BaseScraper):
         return urlunparse(('https', 'www.flipkart.com', path, '', urlencode({'pid': pid}) if pid else '', ''))
 
     def _fetch_product(self, url):
+        url = normalize_product_url(url)
         resolved = _resolve_short_url(self.session, url)
         target = self._canonical_url(resolved)
         response = _request_with_retry(self.session, target)
@@ -762,9 +763,24 @@ def _generate_mock_reviews(count: int, product_name: str = None) -> List[Dict]:
 # Module Public API
 # ---------------------------------------------------------------------------
 
+def normalize_product_url(url: str) -> str:
+    """Normalize copied retailer links before dispatch, identity, or requests."""
+    if not isinstance(url, str):
+        raise ScrapingError('Please enter a valid product URL.')
+    value = html.unescape(url.strip()).replace('\\&', '&')
+    parsed = urlparse(value)
+    if parsed.scheme not in ('http', 'https') or not parsed.hostname or any(c.isspace() for c in value):
+        raise ScrapingError('Please enter a valid HTTP or HTTPS product URL.')
+    host = parsed.hostname.lower()
+    if host == 'flipkart.com' or host.endswith('.flipkart.com'):
+        if '/p/' in parsed.path or '/product-reviews/' in parsed.path:
+            return FlipkartScraper._canonical_url(value)
+    return value
+
+
 def scrape_product_data(url: str) -> Dict:
-    return MultiRetailerScraper().scrape_product(url)
+    return MultiRetailerScraper().scrape_product(normalize_product_url(url))
 
 
 def scrape_product_reviews(url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
-    return MultiRetailerScraper().scrape_reviews(url, max_reviews, product_name)
+    return MultiRetailerScraper().scrape_reviews(normalize_product_url(url), max_reviews, product_name)

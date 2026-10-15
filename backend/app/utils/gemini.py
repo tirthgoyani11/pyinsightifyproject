@@ -310,7 +310,7 @@ class RoBERTaBARTAnalyzer:
             'total': total,
         }
         parsed['reviews'] = all_classified
-        parsed['source'] = 'groq:' + (self._last_model or self.model) + ' + local fallback'
+        parsed['source'] = 'groq:' + (self._last_model or self.model)
         return parsed
 
     def _classify_remaining(self, reviews: List[Dict], start_id: int = 26) -> List[Dict]:
@@ -551,60 +551,22 @@ class RoBERTaBARTAnalyzer:
 
         strengths = [t['name'] + ' (High Satisfaction)' for t in topics if t['sentiment'] == 'positive'][:5]
         weaknesses = [t['name'] + ' (Concerns Reported)' for t in topics if t['sentiment'] == 'negative'][:4]
-        if not strengths:
-            strengths = ['High Overall Customer Satisfaction', 'Reliable Functionality', 'Recommended by Buyers']
-        if not weaknesses:
-            weaknesses = ['Minor isolated complaints regarding wear or delivery']
-
         terms = self._fallback_common_terms(reviews)
-
-        # Infer domain category and aspects from reviews and text
-        full_text = " ".join((r.get('text') or '') for r in reviews[:15]).lower()
-        if any(w in full_text for w in ('cloth', 'hoodie', 'shirt', 'fabric', 'wear', 'cotton', 'fit', 'size', 'stitch')):
-            cat = 'Clothing & Apparel'
-            dyn_aspects = [
-                {'name': 'Fabric & Material', 'key': 'fabric', 'score': int(specs.get('quality', 78)), 'icon': '🧵', 'summary': 'Cotton blend fabric with soft feel.'},
-                {'name': 'Fit & Sizing', 'key': 'fit', 'score': int(specs.get('features', 82)), 'icon': '📏', 'summary': 'True to size for standard measurements.'},
-                {'name': 'Comfort & Warmth', 'key': 'comfort', 'score': int(specs.get('performance', 80)), 'icon': '☁️', 'summary': 'Comfortable for everyday wear.'},
-                {'name': 'Stitching & Finish', 'key': 'stitching', 'score': int(specs.get('durability', 70)), 'icon': '🪡', 'summary': 'Solid construction with minor inconsistencies.'},
-                {'name': 'Value for Money', 'key': 'value', 'score': int(specs.get('value', 85)), 'icon': '💰', 'summary': 'Affordable pricing for the quality provided.'}
-            ]
-            b_guide = {
-                'best_for': ['Casual everyday wear', 'Mild winter or autumn layering', 'Budget-conscious buyers'],
-                'avoid_if': ['Severe sub-zero weather conditions'],
-                'verdict': 'A comfortable and versatile clothing choice with strong customer value.',
-                'fit_feedback': 'True to size (recommend normal size)'
-            }
-        elif any(w in full_text for w in ('phone', 'camera', 'battery', 'screen', 'display', 'charge')):
-            cat = 'Smartphones & Electronics'
-            dyn_aspects = [
-                {'name': 'Camera Quality', 'key': 'camera', 'score': int(specs.get('features', 85)), 'icon': '📸', 'summary': 'Good dynamic range and sharp daily photos.'},
-                {'name': 'Battery & Charging', 'key': 'battery', 'score': int(specs.get('durability', 80)), 'icon': '🔋', 'summary': 'Full-day battery backup with fast charging.'},
-                {'name': 'Display & Screen', 'key': 'display', 'score': int(specs.get('quality', 88)), 'icon': '📱', 'summary': 'Vibrant display with good brightness.'},
-                {'name': 'Performance & Speed', 'key': 'performance', 'score': int(specs.get('performance', 84)), 'icon': '⚡', 'summary': 'Fluid multitasking and smooth animations.'},
-                {'name': 'Value for Money', 'key': 'value', 'score': int(specs.get('value', 80)), 'icon': '💰', 'summary': 'Competitive feature set for its price tier.'}
-            ]
-            b_guide = {
-                'best_for': ['Daily productivity', 'Multimedia & streaming', 'Casual gaming and social media'],
-                'avoid_if': ['Extreme heavy gaming for multiple hours'],
-                'verdict': 'A balanced daily driver with dependable display and battery performance.',
-                'fit_feedback': None
-            }
-        else:
-            cat = 'General Product'
-            dyn_aspects = [
-                {'name': 'Build Quality', 'key': 'quality', 'score': int(specs.get('quality', 75)), 'icon': '✨', 'summary': 'Satisfactory material and construction quality.'},
-                {'name': 'Value for Money', 'key': 'value', 'score': int(specs.get('value', 80)), 'icon': '💰', 'summary': 'Fairly priced relative to feature set.'},
-                {'name': 'Durability & Lifespan', 'key': 'durability', 'score': int(specs.get('durability', 72)), 'icon': '🛡️', 'summary': 'Dependable daily performance reported.'},
-                {'name': 'Usability & Features', 'key': 'features', 'score': int(specs.get('features', 78)), 'icon': '⚙️', 'summary': 'Easy to operate and fulfills key advertised claims.'},
-                {'name': 'Customer Satisfaction', 'key': 'satisfaction', 'score': int(specs.get('performance', 76)), 'icon': '⭐', 'summary': 'Positive sentiment among verified buyers.'}
-            ]
-            b_guide = {
-                'best_for': ['Regular everyday usage', 'Buyers seeking reliable value'],
-                'avoid_if': ['Demanding heavy-duty commercial scenarios'],
-                'verdict': 'Meets expectations for verified buyers looking for dependable quality.',
-                'fit_feedback': None
-            }
+        # Local fallback reports only aspects actually mentioned. It must not
+        # invent camera performance, fit advice, or a generic buying persona.
+        cat = None
+        dyn_aspects = [{
+            'name': topic['name'], 'key': re.sub(r'[^a-z0-9]+', '_', topic['name'].lower()).strip('_'),
+            'score': round((topic['score'] + 1) * 50),
+            'mention_count': topic['mention_count'],
+            'summary': f"Mentioned in {topic['mention_count']} reviews: {topic['positive_mentions']} positive and {topic['negative_mentions']} negative mentions."
+        } for topic in topics]
+        b_guide = {
+            'best_for': [topic['name'] + ': positive reviewer feedback' for topic in topics if topic['sentiment'] == 'positive'][:3],
+            'avoid_if': [topic['name'] + ': concerns in reviewer feedback' for topic in topics if topic['sentiment'] == 'negative'][:3],
+            'verdict': 'Compare the recurring praise and concerns with your own priorities. The review sample does not establish suitability for every use case.',
+            'fit_feedback': None
+        }
 
         return {
             'category': cat,

@@ -4,7 +4,7 @@ Product-related API routes
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import Product, Review
-from app.utils.scraper import scrape_product_data, scrape_product_reviews, ScrapingError
+from app.utils.scraper import scrape_product_data, scrape_product_reviews, ScrapingError, normalize_product_url
 from app.utils.review_quality import prepare_reviews, review_quality
 from app.utils.sentiment import analyzer as sentiment_analyzer, extract_common_terms
 from datetime import datetime
@@ -111,6 +111,8 @@ def analyze_product():
         if not url:
             return jsonify({'success': False, 'error': 'URL is required'}), 400
         
+        url = normalize_product_url(url)
+
         # Scrape product data first to resolve any short links (e.g. amzn.in) to canonical URL
         product_data = scrape_product_data(url)
         if not product_data:
@@ -146,12 +148,6 @@ def analyze_product():
                         'productId': existing.product_id,
                         'product': existing.to_dict()
                     })
-            # Clear out outdated/requested refresh data cleanly before re-analyzing
-            Review.query.filter_by(product_id=existing.id).delete()
-            from app.models import Topic
-            Topic.query.filter_by(product_id=existing.id).delete()
-            db.session.delete(existing)
-            db.session.commit()
         if not product_data:
             return jsonify({'success': False, 'error': 'Failed to scrape product'}), 500
         
@@ -238,7 +234,7 @@ def analyze_product():
             t['name'] + ' (High Satisfaction)' for t in topics_data if t['sentiment'] == 'positive'
         ]
         if not strengths:
-            strengths = ['High Overall Customer Satisfaction', 'Reliable Everyday Functionality', 'Recommended by Verified Buyers']
+            strengths = []
         strengths = strengths[:5]
 
         weaknesses = ai_result.get('weaknesses') or [
@@ -249,7 +245,7 @@ def analyze_product():
             if neg_reviews:
                 weaknesses = ['Minor isolated performance or durability concerns reported by a few buyers']
             else:
-                weaknesses = ['No significant complaints reported in verified reviews', 'Consistently positive customer feedback']
+                weaknesses = []
         weaknesses = weaknesses[:4]
 
         # Use observed phrases and review counts, never generated keyword lists.
@@ -264,17 +260,15 @@ def analyze_product():
             pos_pct = sentiment_analysis['positive']
             ai_summary = f"Analysis of {product_data['name']} based on {len(reviews_data)} verified reviews shows {pos_pct}% positive sentiment. Top strengths include {strengths[0] if strengths else 'overall satisfaction'}. Main user concerns note {weaknesses[0] if weaknesses else 'isolated issues'}."
 
-        # Ensure no lingering record with product_id exists before insert
-        lingering = Product.query.filter_by(product_id=product_id).first()
+        # Keep the old report intact until scraping and analysis have succeeded.
+        lingering = Product.query.filter_by(product_id=product_id).first() or existing
         if lingering:
             Review.query.filter_by(product_id=lingering.id).delete()
             from app.models import Topic
             Topic.query.filter_by(product_id=lingering.id).delete()
-            db.session.delete(lingering)
-            db.session.commit()
 
         # Create product with RoBERTa + BART neural NLP results
-        product = Product(
+        product_values = dict(
             product_id=product_id,
             name=product_data['name'],
             url=canonical_url,
@@ -303,6 +297,12 @@ def analyze_product():
             analyzed_at=datetime.utcnow()
         )
         
+        if lingering:
+            product = lingering
+            for key, value in product_values.items():
+                setattr(product, key, value)
+        else:
+            product = Product(**product_values)
         db.session.add(product)
         db.session.flush()
         

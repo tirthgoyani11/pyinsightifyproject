@@ -53,6 +53,22 @@ function setupReviewControls() {
 
     reviewSearch.addEventListener('input', debouncedSearch);
   }
+
+  // Click on word cloud item to filter reviews
+  document.querySelector('.word-clouds')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-evidence-term]');
+    if (!button) return;
+    document.querySelectorAll('.word-cloud-item').forEach(t => t.classList.remove('selected-tag'));
+    button.classList.add('selected-tag');
+    const searchInput = document.getElementById('reviewSearch');
+    if (searchInput) searchInput.value = button.dataset.evidenceTerm;
+    currentFilter = button.dataset.evidenceSentiment || 'all';
+    currentPage = 1;
+    document.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('active', el.dataset.filter === currentFilter));
+    loadReviews();
+    const reviewsEl = document.getElementById('reportReviews') || document.querySelector('.reviews-section') || document.getElementById('reviewsList');
+    if (reviewsEl) reviewsEl.scrollIntoView({behavior: 'smooth'});
+  });
 }
 
 /**
@@ -466,32 +482,94 @@ async function loadProductAnalysis(productId) {
 }
 
 /**
- * Display word clouds
+ * Render individual solid characters for Bouncy LetterCascade.
+ * Characters NEVER hide, vanish, or clip on hover.
+ */
+function renderCascadeLetters(text) {
+  const chars = Array.from(text);
+  const total = chars.length;
+  return chars.map((char, index) => {
+    if (char === ' ') {
+      return '<span class="cascade-space">&nbsp;</span>';
+    }
+    const isLast = (index === total - 1) ? ' cascade-letter-last' : '';
+    return `<span class="cascade-letter${isLast}" style="--i: ${index};">${escapeHtml(char)}</span>`;
+  }).join('');
+}
+
+/**
+ * Display word clouds with dynamic typography, fancy heading font, and Bouncy LetterCascade
  */
 function displayCommonTerms(commonTerms) {
-  const positiveCloud = document.getElementById('positiveWordCloud');
-  if (positiveCloud) {
-    if (commonTerms.positive_terms && commonTerms.positive_terms.length > 0) {
-      positiveCloud.innerHTML = commonTerms.positive_terms.map((term, index) => {
-        const fontSize = Math.max(1.1, 2.0 - (index * 0.15));
-        return `<span class="cloud-word" style="font-size: ${fontSize.toFixed(2)}rem; color: var(--color-positive); margin: 4px 8px; display: inline-block;">${escapeHtml(term)}</span>`;
-      }).join('\n');
-    } else {
-      positiveCloud.innerHTML = '<p class="text-secondary" style="text-align: center;">No recurring positive terms</p>';
-    }
-  }
+  if (!commonTerms) return;
 
-  const negativeCloud = document.getElementById('negativeWordCloud');
-  if (negativeCloud) {
-    if (commonTerms.negative_terms && commonTerms.negative_terms.length > 0) {
-      negativeCloud.innerHTML = commonTerms.negative_terms.map((term, index) => {
-        const fontSize = Math.max(1.1, 1.9 - (index * 0.15));
-        return `<span class="cloud-word" style="font-size: ${fontSize.toFixed(2)}rem; color: var(--color-negative); margin: 4px 8px; display: inline-block;">${escapeHtml(term)}</span>`;
-      }).join('\n');
-    } else {
-      negativeCloud.innerHTML = '<p class="text-secondary" style="text-align: center;">✓ No recurring negative complaint terms</p>';
+  ['positive', 'negative'].forEach(sentiment => {
+    const container = document.getElementById(sentiment + 'WordCloud');
+    if (!container) return;
+
+    const evidenceList = commonTerms[sentiment + '_evidence'] || 
+      (commonTerms[sentiment + '_terms'] || []).map((term, i, arr) => ({
+        term: term,
+        count: Math.max(1, arr.length - i)
+      }));
+
+    if (!evidenceList.length) {
+      const emptyMsg = sentiment === 'positive' 
+        ? 'No recurring positive terms' 
+        : '✓ No recurring negative complaint terms';
+      container.innerHTML = `<p class="evidence-empty" style="text-align: center; color: var(--color-text-secondary); padding: 1.5rem;">${emptyMsg}</p>`;
+      return;
     }
-  }
+
+    const counts = evidenceList.map(item => item.count || 1);
+    const maxCount = Math.max(...counts);
+    const minCount = Math.min(...counts);
+    const range = maxCount - minCount;
+
+    container.innerHTML = evidenceList.map((item, index) => {
+      // Relative weight from 0.0 to 1.0 based on review frequency
+      const weight = range > 0 ? (item.count - minCount) / range : Math.max(0.2, 1 - (index * 0.1));
+      
+      // Dynamic typography: 16px up to 36px, font-weight 500 up to 800
+      const fontSize = Math.round(16 + (weight * 20));
+      const fontWeight = Math.round(500 + (weight * 300));
+      const opacity = (0.75 + (weight * 0.25)).toFixed(2);
+      const countDisplay = item.count ? `<span class="word-cloud-count" aria-label="${item.count} reviews">${item.count}</span>` : '';
+
+      return `
+        <button type="button" 
+                class="word-cloud-item ${sentiment}" 
+                data-evidence-term="${escapeHtml(item.term)}" 
+                data-evidence-sentiment="${sentiment}" 
+                style="--word-size: ${fontSize}px; --word-opacity: ${opacity}; font-family: 'Ceky Pops', 'Ceky Pops Demo', var(--font-heading) !important;"
+                title="${item.count || ''} reviews mention &quot;${escapeHtml(item.term)}&quot; — Click to view supporting reviews">
+          <span class="word-text" style="font-family: 'Ceky Pops', 'Ceky Pops Demo', var(--font-heading) !important;" aria-label="${escapeHtml(item.term)}">
+            ${renderCascadeLetters(item.term)}
+          </span>
+          ${countDisplay}
+        </button>
+      `;
+    }).join('');
+
+    // Attach trigger to restart bouncy wave on hover / touch
+    container.querySelectorAll('.word-cloud-item').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        btn.classList.remove('is-cascading');
+        void btn.offsetWidth; // force reflow for smooth re-trigger
+        btn.classList.add('is-cascading');
+      });
+      btn.addEventListener('touchstart', () => {
+        btn.classList.remove('is-cascading');
+        void btn.offsetWidth;
+        btn.classList.add('is-cascading');
+      }, { passive: true });
+      btn.addEventListener('animationend', (e) => {
+        if (e.target.classList.contains('cascade-letter-last')) {
+          btn.classList.remove('is-cascading');
+        }
+      });
+    });
+  });
 }
 
 /**

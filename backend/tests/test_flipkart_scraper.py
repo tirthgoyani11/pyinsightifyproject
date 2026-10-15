@@ -43,6 +43,22 @@ class FlipkartScraperTests(unittest.TestCase):
     def setUp(self):
         self.scraper = scraper.FlipkartScraper()
 
+    def test_full_tracking_url_and_copied_formats_normalize_identically(self):
+        full = 'https://www.flipkart.com/lenovo-100e-chromebook-gen-4-mediatek-kompanio-520-8-gb-64-gb-emmc-storage-chrome-os/p/itm338cfd61c4d4e?pid=COMHC5G9YPVUM34V&lid=LSTCOMHC5G9YPVUM34VCWFWGC&marketplace=FLIPKART&store=6bo%2Fb5g&srno=b_1_7&otracker=browse&fm=organic&iid=b8b07019-73c0-47e3-b367-c6143b7b7215.COMHC5G9YPVUM34V.SEARCH&ppt=None&ppn=None&ssid=al8saw18k00000001792080913326&ov_redirect=true'
+        expected = full.split('&', 1)[0]
+        for url in (full, '  ' + full + '  ', full.replace('&', '&amp;'), full.replace('&', '\\&')):
+            with self.subTest(url=url):
+                self.assertEqual(scraper.normalize_product_url(url), expected)
+
+    def test_normalization_preserves_case_sensitive_share_token(self):
+        short = 'https://dl.flipkart.com/s/D7zDBQuuuN'
+        self.assertEqual(scraper.normalize_product_url(short), short)
+
+    def test_normalization_rejects_non_http_urls(self):
+        for value in (None, 3, 'file:///etc/hosts', 'javascript:alert(1)'):
+            with self.subTest(value=value), self.assertRaises(scraper.ScrapingError):
+                scraper.normalize_product_url(value)
+
     def test_short_link_resolves_and_closes_response(self):
         session = Mock()
         session.get.return_value = Mock(url=PRODUCT_URL)
@@ -123,6 +139,23 @@ class FlipkartScraperTests(unittest.TestCase):
         self.assertEqual(parsed[0]['rating'], 2)
         self.assertEqual(parsed[0]['author'], 'Buyer')
         self.assertTrue(parsed[0]['verified'])
+
+
+class AmazonIntegrityTests(unittest.TestCase):
+    def test_blocked_product_does_not_become_mock_product(self):
+        amazon = scraper.AmazonScraper()
+        with patch.object(scraper, '_request_with_retry', return_value=None), self.assertRaises(scraper.ScrapingError):
+            amazon.scrape_product('https://www.amazon.in/dp/B012345678')
+
+    def test_missing_stars_are_not_invented(self):
+        card = BeautifulSoup('<div data-hook="review"><span class="a-profile-name">Buyer</span><span data-hook="review-body">Good battery life</span></div>', 'lxml')
+        parsed = scraper.AmazonScraper()._parse_review_card(card)
+        self.assertIsNone(parsed['rating'])
+        self.assertFalse(parsed['verified'])
+
+    def test_missing_reviews_do_not_generate_samples(self):
+        with patch.object(scraper, '_request_with_retry', return_value=None):
+            self.assertEqual(scraper.AmazonScraper().scrape_reviews('https://www.amazon.in/dp/B012345678', max_reviews=5), [])
 
 
 if __name__ == '__main__':

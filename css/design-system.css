@@ -3,7 +3,63 @@
    Derived from DESIGN.md (Cupertino Design Guidelines)
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,500;1,600&display=swap');
+/* ==========================================================================
+   DISPLAY HEADING & TITLE FONT: Ceky Pops Demo
+   Strictly for Headings and Titles only (see fonts/1001fonts-ceky-pops-demo-eula.txt)
+   ========================================================================== */
+@font-face {
+  font-family: 'Ceky Pops';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ceky Pops';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ceky Pops';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ceky Pops Demo';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ceky Pops Demo';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ceky Pops Demo';
+  src: url('../fonts/CekyPops-Demo.ttf') format('truetype'),
+       url('../fonts/CekyPops-Demo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
 
 :root {
   /* ===== BRAND & ACCENT COLORS (Apple Action Blue) ===== */
@@ -70,8 +126,8 @@
   --color-gray-900: #1c1c1e;
 
   /* ===== TYPOGRAPHY (SF Pro / Inter Apple Tight Cadence) ===== */
-  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", system-ui, sans-serif;
+  --font-heading: 'Ceky Pops', 'Ceky Pops Demo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* Typography Scale */
   --text-xs: 0.75rem;      /* 12px */
@@ -181,21 +237,66 @@ body {
    TYPOGRAPHY UTILITIES
    ========================================================================== */
 
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3, h4, h5, h6,
+.hero-title-line,
+.section-title,
+.card-title,
+.step-title,
+.feature-title,
+.product-title,
+.modal-title,
+.page-title,
+.dialog-title,
+.banner-title {
   font-family: var(--font-heading);
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: 0.01em;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-4);
 }
 
-h1 { font-size: var(--text-5xl); letter-spacing: -0.028em; }
-h2 { font-size: var(--text-4xl); letter-spacing: -0.024em; }
-h3 { font-size: var(--text-3xl); letter-spacing: -0.020em; }
-h4 { font-size: var(--text-2xl); letter-spacing: -0.016em; }
-h5 { font-size: var(--text-xl);  letter-spacing: -0.012em; }
-h6 { font-size: var(--text-lg);  letter-spacing: -0.010em; }
+/* Guard long text contents and body elements: ALWAYS use clean, legible body font */
+p,
+span,
+li,
+td,
+th,
+input,
+textarea,
+select,
+button,
+label,
+blockquote,
+pre,
+code,
+.lead,
+.section-subtitle,
+.hero-geometric-description,
+.step-description,
+.feature-description,
+.review-text,
+.review-body,
+.review-content,
+.review-comment,
+.comment-text,
+.post-excerpt,
+.footer-tagline,
+.card-subtitle,
+.card-body,
+.badge,
+.pill,
+.tab-btn,
+.nav-link,
+.supaste-nav-link {
+  font-family: var(--font-body);
+}
+
+h1 { font-size: var(--text-5xl); letter-spacing: 0.01em; }
+h2 { font-size: var(--text-4xl); letter-spacing: 0.01em; }
+h3 { font-size: var(--text-3xl); letter-spacing: 0.01em; }
+h4 { font-size: var(--text-2xl); letter-spacing: 0.01em; }
+h5 { font-size: var(--text-xl);  letter-spacing: 0.01em; }
+h6 { font-size: var(--text-lg);  letter-spacing: 0.01em; }
 
 p {
   margin-bottom: var(--space-4);

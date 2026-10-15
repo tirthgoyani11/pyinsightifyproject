@@ -96,7 +96,7 @@
 
 .framer-1tgpjgm,
 .supaste-logo-text {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Display", "Inter", sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -124,7 +124,7 @@
 
 .framer-m1k0id a,
 .supaste-nav-link {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Display", "Inter", sans-serif;
+  font-family: var(--font-body);
   font-size: 13.5px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -166,7 +166,7 @@
   color: #000000 !important;
   border-radius: 8px !important;
   padding: 6px 14px !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Display", "Inter", sans-serif;
+  font-family: var(--font-body);
   font-size: 12px !important;
   font-weight: 600 !important;
   letter-spacing: -0.01em !important;
@@ -422,7 +422,7 @@ html {
 }
 
 .hero-title-line {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-family: var(--font-heading);
   font-size: clamp(40px, 6.8vw, 76px);
   font-weight: 800;
   line-height: 0.98;
@@ -621,7 +621,7 @@ html {
 }
 
 .section-header h2 {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  font-family: var(--font-heading);
   font-size: clamp(32px, 4vw, 44px);
   font-weight: 700;
   letter-spacing: -0.035em;
@@ -731,7 +731,7 @@ html {
 }
 
 .step-title {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  font-family: var(--font-heading);
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -862,7 +862,7 @@ html {
 
 .feature-title,
 .feature-card h3 {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  font-family: var(--font-heading);
   font-size: 18.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -921,7 +921,7 @@ html {
 }
 
 .cta-banner h3 {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  font-family: var(--font-heading);
   font-size: clamp(26px, 3.5vw, 36px);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -999,7 +999,7 @@ html {
 }
 
 .footer-logo-text {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  font-family: var(--font-body);
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -1040,7 +1040,7 @@ html {
 }
 
 .footer-column h4 {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+  font-family: var(--font-body);
   font-size: 12.5px;
   font-weight: 600;
   text-transform: uppercase;

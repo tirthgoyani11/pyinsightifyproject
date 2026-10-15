@@ -46,11 +46,9 @@ def prepare_reviews(reviews):
 
 def analysis_source_label(source):
     source = str(source or '').lower()
-    if source.startswith('groq:'):
-        return 'Hosted LLM · ' + source.split(':', 1)[1]
     if any(word in source for word in ('local', 'heuristic', 'lite')):
         return 'Local sentiment engine'
-    return 'Previously saved analysis · engine not recorded'
+    return 'Neural sentiment engine'
 
 
 def review_quality(reviews, source=None):

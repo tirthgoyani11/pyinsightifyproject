@@ -14,6 +14,26 @@ const API = {
     version: '1.0.0'
   },
   
+  /** Canonicalize copied Flipkart product/review URLs; preserve short-link tokens. */
+  normalizeProductUrl(input) {
+    const value = String(input || '').trim().replace(/\\&/g, '&').replace(/&amp;/gi, '&');
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Please enter an HTTP or HTTPS product URL.');
+    if (parsed.hostname === 'flipkart.com' || parsed.hostname.endsWith('.flipkart.com')) {
+      if (/\/(?:p|product-reviews)\/itm[\w]+/.test(parsed.pathname)) {
+        const pid = parsed.searchParams.get('pid');
+        parsed.protocol = 'https:';
+        parsed.hostname = 'www.flipkart.com';
+        parsed.pathname = parsed.pathname.replace(/^\/dl\//, '/').replace('/product-reviews/', '/p/');
+        parsed.search = '';
+        parsed.hash = '';
+        if (pid) parsed.searchParams.set('pid', pid);
+        return parsed.href;
+      }
+    }
+    return value;
+  },
+
   // ===== HELPER FUNCTIONS =====
   
   /**
@@ -22,7 +42,8 @@ const API = {
   async _fetch(endpoint, options = {}) {
     const url = `${this.config.baseURL}${endpoint}`;
     const TIMEOUT_MS = 90_000;
-    const MAX_RETRIES = 2;
+    // Analysis POSTs can be expensive; only retry read-only requests automatically.
+    const MAX_RETRIES = ['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase()) ? 2 : 0;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const controller = new AbortController();
@@ -257,6 +278,7 @@ const API = {
      * Analyze new product from URL
      */
     async analyze(productUrl, retailer = null, productName = null, category = null) {
+      productUrl = API.normalizeProductUrl(productUrl);
       if (API.config.useMockData) {
         return API.products._analyzeMockProduct(productUrl, retailer, productName, category);
       }
