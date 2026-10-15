@@ -1,544 +1,688 @@
 """
-Enhanced Web Scraper for Amazon and Other Retailers
-Supports real product data extraction with multiple fallback methods
+Enhanced Web Scraper for Amazon, Flipkart, and Other Retailers
+Supports real product data extraction, short URL resolution, review highlights,
+portal pagination, variation harvesting, and robust sentiment extraction.
 """
 import re
-import json
 import time
 import random
+import logging
+import json
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
+
 try:
     from fake_useragent import UserAgent
     HAS_FAKE_UA = True
 except ImportError:
     HAS_FAKE_UA = False
 
+logger = logging.getLogger(__name__)
 
-class AmazonScraper:
-    """Advanced Amazon product scraper with multiple extraction methods"""
-    
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:126.0) Gecko/20100101 Firefox/126.0',
+]
+
+
+def _resolve_short_url(session: requests.Session, url: str, timeout: int = 10) -> str:
+    """Resolve amzn.in / a.co / amzn.to short links to the canonical Amazon URL."""
+    if any(d in url for d in ('amzn.in', 'a.co', 'amzn.to', 'bit.ly', 'tinyurl.com')):
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-IN,en;q=0.9',
+            }
+            resp = session.get(url, allow_redirects=True, stream=True, timeout=timeout, headers=headers)
+            if resp.url and resp.url != url:
+                logger.info("Resolved short URL %s -> %s", url, resp.url)
+                return resp.url
+        except Exception as exc:
+            logger.warning("Failed to resolve short URL %s: %s", url, exc)
+    return url
+
+
+def _clean_text(text: str) -> str:
+    """Strip Amazon boilerplate artifacts, whitespace, and buttons."""
+    if not text:
+        return ""
+    text = re.sub(r'Brief content visible, double tap to read full content\.?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Full content visible, double tap to read brief content\.?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Read moreRead less', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Read less', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Read more', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'^[^\w]+', '', text)
+    text = re.sub(r'[^\w]+$', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+def _extract_number(text: str, default: float = 0.0) -> float:
+    """Extract first floating-point number from text."""
+    m = re.search(r'[\d,]+(?:\.\d+)?', text.replace(',', ''))
+    return float(m.group(0)) if m else default
+
+
+def _rotate_ua(session: requests.Session) -> None:
+    ua = random.choice(USER_AGENTS)
+    session.headers.update({
+        'User-Agent': ua,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-IN,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Upgrade-Insecure-Requests': '1',
+    })
+
+
+def _request_with_retry(
+    session: requests.Session,
+    url: str,
+    max_retries: int = 3,
+    backoff: float = 1.0,
+    timeout: int = 12,
+) -> Optional[requests.Response]:
+    """Perform a GET request with retries and exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            _rotate_ua(session)
+            resp = session.get(url, timeout=timeout)
+            if resp.status_code == 200 and len(resp.content) > 30000 and 'Enter the characters you see below' not in resp.text:
+                return resp
+            logger.debug("Request to %s gave status %s, size %d (attempt %d/%d)", url, resp.status_code, len(resp.content), attempt + 1, max_retries)
+        except requests.RequestException as exc:
+            logger.debug("Request error for %s: %s (attempt %d/%d)", url, exc, attempt + 1, max_retries)
+
+        if attempt < max_retries - 1:
+            time.sleep(backoff * (2 ** attempt) + random.uniform(0.1, 0.5))
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Base Scraper
+# ---------------------------------------------------------------------------
+
+class BaseScraper:
+    """Common interface all retailer scrapers implement."""
+
+    RETAILER: str = 'Unknown'
+
+    def scrape_product(self, url: str) -> Dict:
+        raise NotImplementedError
+
+    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+        raise NotImplementedError
+
+
+# ---------------------------------------------------------------------------
+# Amazon Scraper
+# ---------------------------------------------------------------------------
+
+class AmazonScraper(BaseScraper):
+    """Amazon India product + review scraper with multi-page pagination and variation harvesting."""
+
+    RETAILER = 'Amazon'
+
     def __init__(self):
-        if HAS_FAKE_UA:
-            self.ua = UserAgent()
-            user_agent = self.ua.random
-        else:
-            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': user_agent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': random.choice(USER_AGENTS),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-IN,en-US;q=0.9,en;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'DNT': '1',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
+            'Upgrade-Insecure-Requests': '1',
         })
-    
-    def _extract_product_name_from_url(self, url: str) -> str:
-        """Extract product name from URL path"""
-        try:
-            path = urlparse(url).path
-            # Remove common parts
-            parts = path.split('/')
-            # Find the part that looks like a product name (usually has dashes)
-            for part in parts:
-                if '-' in part and len(part) > 10 and not part.startswith('dp') and not part.startswith('gp'):
-                    # Convert dashes to spaces and title case
-                    name = part.replace('-', ' ').title()
-                    # Remove numbers and extra characters at the end
-                    name = re.sub(r'[/\d]{5,}.*$', '', name).strip()
-                    if name:
-                        return name
-        except Exception as e:
-            print(f"Error extracting product name: {e}")
-        return "Product"
-    
+
     def extract_asin(self, url: str) -> Optional[str]:
-        """Extract ASIN from Amazon URL"""
-        # Pattern 1: /dp/ASIN/
-        match = re.search(r'/dp/([A-Z0-9]{10})', url)
-        if match:
-            return match.group(1)
-        
-        # Pattern 2: /gp/product/ASIN/
-        match = re.search(r'/gp/product/([A-Z0-9]{10})', url)
-        if match:
-            return match.group(1)
-        
-        # Pattern 3: ASIN in query parameters
-        parsed = urlparse(url)
-        params = parse_qs(parsed.query)
-        if 'asin' in params:
-            return params['asin'][0]
-        
+        return self._extract_asin(url)
+
+    def _extract_asin(self, url: str) -> Optional[str]:
+        patterns = [
+            r'/(?:dp|gp/product|d)/([A-Z0-9]{10})',
+            r'/portal/customer-reviews/([A-Z0-9]{10})',
+            r'/product-reviews/([A-Z0-9]{10})',
+            r'ASIN=([A-Z0-9]{10})',
+            r'/([A-Z0-9]{10})(?:[/?]|$)',
+        ]
+        for p in patterns:
+            m = re.search(p, url)
+            if m:
+                return m.group(1)
         return None
-    
+
     def scrape_product(self, url: str) -> Dict:
-        """Scrape product information from Amazon"""
-        try:
-            asin = self.extract_asin(url)
-            if not asin:
-                return self._generate_mock_product(url)
-            
-            # Add random delay to avoid detection
-            time.sleep(random.uniform(1, 3))
-            
-            # Rotate user agent if available
-            if HAS_FAKE_UA:
-                self.session.headers['User-Agent'] = self.ua.random
-            
-            response = self.session.get(url, timeout=10)
-            
-            if response.status_code != 200:
-                print(f"⚠️  Amazon returned status {response.status_code}, using mock data")
-                return self._generate_mock_product(url)
-            
-            soup = BeautifulSoup(response.content, 'lxml')
-            
-            # Extract product data with multiple fallback methods
-            product_data = {
-                'name': self._extract_title(soup, url),
-                'price': self._extract_price(soup),
-                'rating': self._extract_rating(soup),
-                'total_reviews': self._extract_review_count(soup),
-                'image_url': self._extract_image(soup),
-                'retailer': 'Amazon India',
-                'url': url,
-                'asin': asin,
-                'availability': self._extract_availability(soup),
-                'category': self._extract_category(soup)
-            }
-            
-            print(f"✅ Successfully scraped: {product_data['name']}")
-            return product_data
-            
-        except Exception as e:
-            print(f"⚠️  Scraping error: {e}. Using fallback product data.")
-            product_name = self._extract_product_name_from_url(url)
-            return self._generate_mock_product(url, product_name)
-    
+        """Extract product details, pricing, ratings, image, and AI summary."""
+        resolved_url = _resolve_short_url(self.session, url)
+        asin = self._extract_asin(resolved_url)
+        target_url = f"https://www.amazon.in/dp/{asin}" if asin else resolved_url
+
+        resp = _request_with_retry(self.session, target_url)
+        if not resp or resp.status_code != 200:
+            logger.warning("Failed to fetch product detail page for %s", target_url)
+            pname = _product_name_from_url(resolved_url)
+            return self._generate_mock_product(target_url, pname, asin)
+
+        soup = BeautifulSoup(resp.content, 'lxml')
+
+        title = self._extract_title(soup, resolved_url)
+        price = self._extract_price(soup)
+        rating = self._extract_rating(soup)
+        review_count = self._extract_review_count(soup)
+        image_url = self._extract_image(soup)
+
+        overall_summary = None
+        summary_el = soup.find(attrs={'data-testid': 'overall-summary'}) or soup.find(id='cr-product-insights-detail-page_ai-generated-summary')
+        if summary_el:
+            overall_summary = _clean_text(summary_el.get_text(separator=' ', strip=True))
+
+        availability = self._extract_availability(soup)
+        category = self._extract_category(soup)
+
+        product_data = {
+            'name': title,
+            'price': price,
+            'rating': rating,
+            'total_reviews': review_count,
+            'rating_count': review_count,
+            'image_url': image_url,
+            'retailer': 'Amazon India',
+            'url': target_url,
+            'asin': asin or '',
+            'overall_summary': overall_summary,
+            'availability': availability,
+            'category': category,
+        }
+        logger.info("Successfully scraped Amazon product: %s (ASIN: %s, Price: %s)", title, asin, price)
+        return product_data
+
     def _extract_title(self, soup: BeautifulSoup, url: str) -> str:
-        """Extract product title with multiple selectors"""
         selectors = [
             {'id': 'productTitle'},
             {'class': 'product-title'},
             {'id': 'title'},
-            {'class': 'a-size-large product-title-word-break'}
+            {'class': 'a-size-large product-title-word-break'},
         ]
-        
-        for selector in selectors:
-            element = soup.find(**selector)
-            if element:
-                return element.get_text().strip()
-        
-        # Fallback: extract from URL
-        path = urlparse(url).path
-        parts = [p for p in path.split('/') if p and p not in ['dp', 'gp', 'product']]
-        if parts and len(parts) > 0:
-            name = parts[0].replace('-', ' ')
-            return name.title()
-        
-        return "Amazon Product"
-    
+        for sel in selectors:
+            el = soup.find(**sel)
+            if el and el.get_text(strip=True):
+                return el.get_text(strip=True)
+        return _product_name_from_url(url)
+
     def _extract_price(self, soup: BeautifulSoup) -> float:
-        """Extract product price"""
         selectors = [
             {'class': 'a-price-whole'},
+            {'class': 'apexPriceToPay'},
             {'class': 'a-color-price'},
-            {'id': 'priceblock_dealprice'},
             {'id': 'priceblock_ourprice'},
-            {'class': 'apexPriceToPay'}
+            {'id': 'priceblock_dealprice'},
         ]
-        
-        for selector in selectors:
-            element = soup.find(**selector)
-            if element:
-                price_text = element.get_text()
-                # Extract number from price
-                match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
-                if match:
-                    return float(match.group(0))
-        
-        return round(random.uniform(500, 5000), 2)
-    
+        for sel in selectors:
+            el = soup.find(**sel)
+            if el:
+                val = _extract_number(el.get_text())
+                if val > 0:
+                    return val
+        return 999.0
+
     def _extract_rating(self, soup: BeautifulSoup) -> float:
-        """Extract product rating"""
         selectors = [
-            {'class': 'a-icon-star'},
             {'id': 'acrPopover'},
-            {'class': 'reviewCountTextLinkedHistogram'}
+            {'class': 'a-icon-star'},
+            {'class': 'reviewCountTextLinkedHistogram'},
         ]
-        
-        for selector in selectors:
-            element = soup.find(**selector)
-            if element:
-                rating_text = element.get_text()
-                match = re.search(r'(\d+\.?\d*)\s*out of', rating_text)
-                if match:
-                    return float(match.group(1))
-                match = re.search(r'^(\d+\.?\d*)', rating_text)
-                if match:
-                    return float(match.group(1))
-        
-        return round(random.uniform(3.5, 4.8), 1)
-    
+        for sel in selectors:
+            el = soup.find(**sel)
+            if el:
+                txt = el.get_text()
+                m = re.search(r'(\d+(?:\.\d+)?)\s*out of', txt)
+                if m:
+                    return float(m.group(1))
+                m = re.search(r'^(\d+(?:\.\d+)?)', txt.strip())
+                if m:
+                    return float(m.group(1))
+        return 4.0
+
     def _extract_review_count(self, soup: BeautifulSoup) -> int:
-        """Extract total review count"""
         selectors = [
             {'id': 'acrCustomerReviewText'},
-            {'class': 'totalReviewCount'}
+            {'class': 'totalReviewCount'},
         ]
-        
-        for selector in selectors:
-            element = soup.find(**selector)
-            if element:
-                count_text = element.get_text()
-                match = re.search(r'([\d,]+)', count_text.replace(',', ''))
-                if match:
-                    return int(match.group(1))
-        
-        return random.randint(100, 5000)
-    
+        for sel in selectors:
+            el = soup.find(**sel)
+            if el:
+                val = int(_extract_number(el.get_text(), default=0))
+                if val > 0:
+                    return val
+        return 100
+
     def _extract_image(self, soup: BeautifulSoup) -> str:
-        """Extract product image URL"""
         selectors = [
             {'id': 'landingImage'},
             {'id': 'imgBlkFront'},
-            {'class': 'a-dynamic-image'}
+            {'class': 'a-dynamic-image'},
         ]
-        
-        for selector in selectors:
-            element = soup.find('img', selector)
-            if element and element.get('src'):
-                return element['src']
-        
-        return 'https://via.placeholder.com/300x300?text=Product+Image'
-    
+        for sel in selectors:
+            img = soup.find('img', sel)
+            if img:
+                src = img.get('src') or img.get('data-old-hires') or img.get('data-a-dynamic-image')
+                if src and src.startswith('http'):
+                    return src
+        return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'
+
     def _extract_availability(self, soup: BeautifulSoup) -> str:
-        """Extract availability status"""
-        selectors = [
-            {'id': 'availability'},
-            {'class': 'availability'}
-        ]
-        
-        for selector in selectors:
-            element = soup.find(**selector)
-            if element:
-                text = element.get_text().strip().lower()
-                if 'in stock' in text:
-                    return 'In Stock'
-                elif 'out of stock' in text:
-                    return 'Out of Stock'
-                return text.capitalize()
-        
+        avail_el = soup.find(id='availability')
+        if avail_el:
+            txt = avail_el.get_text(strip=True).lower()
+            if 'in stock' in txt:
+                return 'In Stock'
+            if 'out of stock' in txt:
+                return 'Out of Stock'
         return 'In Stock'
-    
+
     def _extract_category(self, soup: BeautifulSoup) -> str:
-        """Extract product category"""
-        breadcrumbs = soup.find('div', {'id': 'wayfinding-breadcrumbs_feature_div'})
-        if breadcrumbs:
-            categories = [a.get_text().strip() for a in breadcrumbs.find_all('a')]
-            if categories:
-                return ' > '.join(categories)
-        
-        return 'Electronics'
-    
-    def scrape_reviews(self, url: str, max_reviews: int = 25) -> List[Dict]:
-        """Scrape product reviews from Amazon (limited to 25 for AI generation)"""
-        try:
-            asin = self.extract_asin(url)
-            if not asin:
-                # Try to extract product name from URL for AI generation
-                product_name = self._extract_product_name_from_url(url)
-                return self._generate_mock_reviews(max_reviews, product_name)
-            
-            # Construct review page URL
-            review_url = f'https://www.amazon.in/product-reviews/{asin}/ref=cm_cr_arp_d_viewopt_sr?reviewerType=all_reviews&pageNumber=1'
-            
-            reviews = []
-            page = 1
-            
-            while len(reviews) < max_reviews and page <= 5:  # Max 5 pages
-                time.sleep(random.uniform(2, 4))
-                
-                page_url = review_url.replace('pageNumber=1', f'pageNumber={page}')
-                if HAS_FAKE_UA:
-                    self.session.headers['User-Agent'] = self.ua.random
-                
-                response = self.session.get(page_url, timeout=10)
-                
-                if response.status_code != 200:
+        bc = soup.find('div', id='wayfinding-breadcrumbs_feature_div')
+        if bc:
+            cats = [a.get_text(strip=True) for a in bc.find_all('a') if a.get_text(strip=True)]
+            if cats:
+                return ' > '.join(cats)
+        return 'Apparel & Lifestyle'
+
+    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+        """
+        Scrape genuine customer reviews and aspect quotes from Amazon.
+        Supports multi-page portal pagination (10 reviews/page), product page review cards,
+        aspect highlight quotes, and sibling product variations.
+        """
+        resolved_url = _resolve_short_url(self.session, url)
+        asin = self._extract_asin(resolved_url)
+        pname = product_name or _product_name_from_url(resolved_url)
+        product_url = f"https://www.amazon.in/dp/{asin}" if asin else resolved_url
+
+        reviews: List[Dict] = []
+        seen_texts = set()
+
+        def _add_review(rev_dict):
+            if not rev_dict or not rev_dict.get('text'):
+                return False
+            norm = rev_dict['text'].lower().strip()
+            if len(norm) >= 6 and norm not in seen_texts:
+                seen_texts.add(norm)
+                reviews.append(rev_dict)
+                return True
+            return False
+
+        # Strategy 1: Attempt direct multi-page pagination on review portal (10 reviews per page)
+        if asin and len(reviews) < max_reviews:
+            for page in range(1, 6):  # Check up to 5 paginated batches
+                if len(reviews) >= max_reviews:
                     break
-                
-                soup = BeautifulSoup(response.content, 'lxml')
-                review_divs = soup.find_all('div', {'data-hook': 'review'})
-                
-                if not review_divs:
+                portal_url = f"https://www.amazon.in/portal/customer-reviews/{asin}/ref=cm_cr_arp_d_paging_btm_next_{page}?ie=UTF8&reviewerType=all_reviews&pageNumber={page}&sortBy=recent"
+                p_resp = _request_with_retry(self.session, portal_url, max_retries=1, timeout=8)
+                if p_resp and p_resp.status_code == 200 and len(p_resp.content) > 30000 and 'ap/signin' not in p_resp.url and 'Enter the characters you see below' not in p_resp.text:
+                    p_soup = BeautifulSoup(p_resp.content, 'lxml')
+                    p_cards = p_soup.find_all(attrs={'data-hook': 'review'}) or p_soup.find_all('div', id=re.compile(r'customer_review-'))
+                    new_cards = 0
+                    for c in p_cards:
+                        card_data = self._parse_review_card(c)
+                        if _add_review(card_data):
+                            new_cards += 1
+                    if new_cards == 0:
+                        break
+                else:
                     break
-                
-                for review_div in review_divs:
+
+        # Strategy 2: Product detail page (Always accessible, embeds top cards + aspect bottomsheets)
+        variation_asins = []
+        resp = _request_with_retry(self.session, product_url)
+        if resp and resp.status_code == 200:
+            soup = BeautifulSoup(resp.content, 'lxml')
+
+            # 2A: Direct review cards on DP
+            cards = soup.find_all(attrs={'data-hook': 'review'}) or soup.find_all('div', id=re.compile(r'customer_review-'))
+            for card in cards:
+                if len(reviews) >= max_reviews:
+                    break
+                review = self._parse_review_card(card)
+                _add_review(review)
+
+            # 2B: Review highlights bottomsheets (Aspect feedback from verified buyers)
+            bottomsheets = soup.find_all(attrs={'data-testid': re.compile(r'bottomsheet-content-')})
+            for bs in bottomsheets:
+                if len(reviews) >= max_reviews:
+                    break
+                aspect_name = bs.get('data-testid', '').replace('bottomsheet-content-', '').strip().title()
+                for s_div in bs.find_all(attrs={'data-csa-c-item-id': 'cr-product-insights-detail-page_read-more-link'}):
                     if len(reviews) >= max_reviews:
                         break
-                    
-                    review = self._parse_review(review_div)
-                    if review:
-                        reviews.append(review)
-                
-                page += 1
-            
-            if reviews:
-                print(f"✅ Scraped {len(reviews)} real reviews")
-                return reviews
-            else:
-                print("⚠️  No reviews found, generating AI reviews")
-                product_name = self._extract_product_name_from_url(url)
-                return self._generate_mock_reviews(max_reviews, product_name)
-            
-        except Exception as e:
-            print(f"⚠️  Review scraping error: {e}. Generating AI reviews.")
-            product_name = self._extract_product_name_from_url(url)
-            return self._generate_mock_reviews(max_reviews, product_name)
-    
-    def _parse_review(self, review_div) -> Optional[Dict]:
-        """Parse individual review"""
+                    raw = s_div.get_text(separator=' ', strip=True)
+                    text = _clean_text(raw)
+                    if len(text) < 8:
+                        continue
+
+                    # Calibrate rating from explicit customer wording
+                    norm = text.lower()
+                    rating = 4.0
+                    if any(w in norm for w in ['worst', 'waste', 'pathetic', 'bad', 'faulty', 'lint', 'unstiched', 'unstitched', 'stained', 'dirty', 'broken', 'crack', 'loose', 'tear', 'torn', 'dull', 'poor', 'not good', 'disappointed', 'faded']):
+                        rating = 1.0
+                    elif any(w in norm for w in ['good', 'love', 'comfortable', 'comfy', 'worth', 'nice', 'perfect', 'amazing', 'superb', 'smooth', 'excellent', 'best', 'stylish']):
+                        rating = 5.0
+
+                    _add_review({
+                        'user': f'Verified Buyer ({aspect_name})',
+                        'author': f'Verified Buyer ({aspect_name})',
+                        'rating': rating,
+                        'title': f'{aspect_name} Feedback',
+                        'text': text,
+                        'date': 'Verified Purchase',
+                        'verified': True,
+                        'aspect': aspect_name,
+                        'source': 'real',
+                    })
+
+            # Collect parent and variation ASINs if more reviews needed
+            if len(reviews) < max_reviews:
+                parent_m = re.search(r'"parentAsin":"([A-Z0-9]{10})"', resp.text)
+                if parent_m and parent_m.group(1) != asin:
+                    variation_asins.append(parent_m.group(1))
+
+                for a_tag in soup.find_all('a', href=True):
+                    m_asin = re.search(r'/(?:dp|portal/customer-reviews)/([A-Z0-9]{10})', a_tag['href'])
+                    if m_asin and m_asin.group(1) != asin and m_asin.group(1) not in variation_asins:
+                        variation_asins.append(m_asin.group(1))
+
+        # Strategy 3: Multi-Variation Harvesting (fetches reviews across sibling sizes/colors)
+        if len(reviews) < max_reviews and variation_asins:
+            for v_asin in variation_asins[:6]:
+                if len(reviews) >= max_reviews:
+                    break
+                v_url = f"https://www.amazon.in/dp/{v_asin}"
+                v_resp = _request_with_retry(self.session, v_url, max_retries=1, timeout=8)
+                if v_resp and v_resp.status_code == 200 and len(v_resp.content) > 40000:
+                    v_soup = BeautifulSoup(v_resp.content, 'lxml')
+                    for c in v_soup.find_all(attrs={'data-hook': 'review'}):
+                        if len(reviews) >= max_reviews:
+                            break
+                        _add_review(self._parse_review_card(c))
+
+        if reviews:
+            logger.info("Successfully scraped %d genuine Amazon reviews for %s", len(reviews), pname)
+            return reviews[:max_reviews]
+
+        # Emergency fallback: If Amazon completely blocked the request or zero reviews existed
+        logger.warning("No real reviews extracted for %s. Generating fallback reviews.", url)
+        return self._generate_mock_reviews(min(max_reviews, 15), pname)
+
+    def _parse_review_card(self, card) -> Optional[Dict]:
+        """Parse individual Amazon review card element with all modern selector variants."""
         try:
-            # Extract rating
-            rating_elem = review_div.find('i', {'data-hook': 'review-star-rating'})
-            rating = 5
-            if rating_elem:
-                rating_text = rating_elem.get_text()
-                match = re.search(r'(\d+\.?\d*)', rating_text)
-                if match:
-                    rating = float(match.group(1))
-            
-            # Extract review text
-            text_elem = review_div.find('span', {'data-hook': 'review-body'})
-            text = text_elem.get_text().strip() if text_elem else ""
-            
-            # Extract title
-            title_elem = review_div.find('a', {'data-hook': 'review-title'})
-            title = title_elem.get_text().strip() if title_elem else ""
-            
-            # Extract author
-            author_elem = review_div.find('span', {'class': 'a-profile-name'})
-            author = author_elem.get_text().strip() if author_elem else "Anonymous"
-            
-            # Extract date
-            date_elem = review_div.find('span', {'data-hook': 'review-date'})
-            date = date_elem.get_text().strip() if date_elem else ""
-            
-            # Extract helpful count
-            helpful_elem = review_div.find('span', {'data-hook': 'helpful-vote-statement'})
-            helpful_count = 0
-            if helpful_elem:
-                helpful_text = helpful_elem.get_text()
-                match = re.search(r'(\d+)', helpful_text)
-                if match:
-                    helpful_count = int(match.group(1))
-            
-            if text:  # Only return if we have review text
-                return {
-                    'rating': rating,
-                    'text': text,
-                    'title': title,
-                    'author': author,
-                    'date': date,
-                    'helpful_count': helpful_count,
-                    'verified': 'Verified Purchase' in review_div.get_text()
-                }
-            
-        except Exception as e:
-            print(f"Error parsing review: {e}")
-        
-        return None
-    
-    def _generate_mock_product(self, url: str, product_name: str = None) -> Dict:
-        """Generate mock product data when scraping fails"""
-        if not product_name:
-            product_names = [
-                "Wireless Bluetooth Headphones",
-                "Smart Watch Fitness Tracker",
-                "Portable Power Bank 20000mAh",
-                "USB-C Fast Charger",
-                "Mechanical Gaming Keyboard"
-            ]
-            product_name = random.choice(product_names)
-        
+            user_el = card.find(class_='a-profile-name') or card.find(attrs={'data-hook': 'genome-widget'})
+            user = user_el.get_text(strip=True) if user_el else "Amazon Customer"
+
+            star_el = card.find(attrs={'data-hook': re.compile(r'star', re.I)}) or card.find(class_='a-icon-star')
+            rating = 4.0
+            if star_el:
+                m = re.search(r'(\d+(?:\.\d+)?)', star_el.get_text())
+                if m:
+                    rating = float(m.group(1))
+
+            title_el = card.find(attrs={'data-hook': re.compile(r'review-?title', re.I)}) or card.find('h5')
+            title = _clean_text(title_el.get_text(strip=True)) if title_el else ""
+
+            rich_el = card.find(attrs={'data-hook': 'reviewRichContentContainer'}) or card.find(attrs={'data-hook': re.compile(r'review-?(?:text|body)', re.I)})
+            text = ""
+            if rich_el:
+                text = rich_el.get_text(separator=' ', strip=True)
+            else:
+                body_el = card.find(attrs={'data-hook': 'reviewText'}) or card.find(attrs={'data-hook': 'review-body'}) or card.find(class_=re.compile(r'review-text', re.I))
+                if body_el:
+                    text = body_el.get_text(separator=' ', strip=True)
+
+            text = _clean_text(text)
+            if not text:
+                return None
+
+            date_el = card.find(attrs={'data-hook': 'review-date'})
+            date_str = date_el.get_text(strip=True) if date_el else "Recent Review"
+
+            verified = bool(card.find(attrs={'data-hook': 'avp-badge'}) or 'Verified Purchase' in card.get_text())
+
+            return {
+                'user': user,
+                'author': user,
+                'rating': rating,
+                'title': title or 'Customer Review',
+                'text': text,
+                'date': date_str,
+                'verified': verified,
+                'source': 'real',
+            }
+        except Exception as exc:
+            logger.debug("Failed parsing review card: %s", exc)
+            return None
+
+    def _generate_mock_product(self, url: str, product_name: str = None, asin: str = None) -> Dict:
+        name = product_name or "Amazon Product"
         return {
-            'name': product_name,
-            'price': round(random.uniform(999, 9999), 2),
-            'rating': round(random.uniform(3.5, 4.8), 1),
-            'total_reviews': random.randint(500, 10000),
-            'image_url': 'https://via.placeholder.com/300x300?text=Product',
+            'name': name,
+            'price': 1299.0,
+            'rating': 4.1,
+            'total_reviews': 350,
+            'rating_count': 350,
+            'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
             'retailer': 'Amazon India',
             'url': url,
-            'asin': 'MOCK' + ''.join([str(random.randint(0, 9)) for _ in range(5)]),
+            'asin': asin or '',
+            'overall_summary': None,
             'availability': 'In Stock',
-            'category': 'Electronics'
+            'category': 'Lifestyle',
         }
-    
+
     def _generate_mock_reviews(self, count: int, product_name: str = None) -> List[Dict]:
-        """Generate realistic mock reviews using Gemini AI or fallback data"""
-        try:
-            # Try to use Gemini to generate realistic reviews
-            from .gemini import GeminiAnalyzer
-            gemini = GeminiAnalyzer()
-            
-            if gemini.enabled and product_name:
-                # Limit count before printing (max 25)
-                actual_count = min(count, 25)
-                print(f"🤖 Generating {actual_count} realistic reviews using Gemini AI...")
-                return self._generate_ai_reviews(gemini, product_name, count)
-        except Exception as e:
-            print(f"⚠️  AI generation failed: {e}, using fallback reviews")
-        
-        # Fallback to template-based reviews
-        mock_reviews = [
-            {"rating": 5, "text": "Excellent product! Highly recommend. Great value for money.", "title": "Best purchase ever", "author": "Rahul K."},
-            {"rating": 4, "text": "Good quality, but delivery was delayed. Overall satisfied with the purchase.", "title": "Good product", "author": "Priya S."},
-            {"rating": 5, "text": "Amazing quality! Exceeded my expectations. Will buy again.", "title": "Superb!", "author": "Amit P."},
-            {"rating": 3, "text": "Average product. Works fine but nothing special. Price is a bit high.", "title": "Decent", "author": "Sneha M."},
-            {"rating": 4, "text": "Very good product. Only minor issue with packaging. Product itself is great.", "title": "Worth the money", "author": "Vikram R."},
-            {"rating": 5, "text": "Perfect! Exactly what I needed. Fast delivery and excellent quality.", "title": "Perfect purchase", "author": "Neha T."},
-            {"rating": 2, "text": "Not as described. Quality is poor. Disappointed with this purchase.", "title": "Disappointed", "author": "Karan J."},
-            {"rating": 4, "text": "Good value for money. Works well. Packaging could be better.", "title": "Good deal", "author": "Pooja L."},
-            {"rating": 5, "text": "Outstanding quality! Best in this price range. Highly recommended.", "title": "Excellent", "author": "Arjun D."},
-            {"rating": 3, "text": "Ok product. Does the job but could be better. Average quality.", "title": "It's okay", "author": "Divya N."},
-            {"rating": 5, "text": "Love it! Perfect size and great performance. No complaints at all.", "title": "Loving it!", "author": "Meera S."},
-            {"rating": 4, "text": "Pretty good overall. Minor issues but nothing major. Would recommend.", "title": "Good buy", "author": "Rohan T."},
-            {"rating": 1, "text": "Terrible quality. Stopped working after a week. Total waste of money.", "title": "Very poor quality", "author": "Sanjay P."},
-            {"rating": 5, "text": "Best purchase this year! Excellent build quality and performance.", "title": "Fantastic!", "author": "Anjali R."},
-            {"rating": 4, "text": "Great product for the price. Does exactly what it promises. Happy with it.", "title": "Value for money", "author": "Kartik M."}
-        ]
-        
+        return _generate_mock_reviews(count, product_name)
+
+
+# ---------------------------------------------------------------------------
+# Flipkart Scraper
+# ---------------------------------------------------------------------------
+
+class FlipkartScraper(BaseScraper):
+    """Flipkart product + review scraper."""
+
+    RETAILER = 'Flipkart'
+
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-IN,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+        })
+
+    def scrape_product(self, url: str) -> Dict:
+        resp = _request_with_retry(self.session, url)
+        if not resp or resp.status_code != 200:
+            return self._mock_product(url)
+
+        soup = BeautifulSoup(resp.content, 'lxml')
+        name = self._extract_text(soup, ['span.B_NuCI', 'h1.yhB1nd', 'h1', 'span[class*="B_NuCI"]']) or _product_name_from_url(url)
+        price = self._extract_number_text(soup, ['div._30jeq3._16Jk6d', 'div._30jeq3', 'div[class*="_30jeq3"]']) or 1499.0
+        rating = self._extract_number_text(soup, ['div._3LWZlK', 'div[class*="_3LWZlK"]']) or 4.1
+        review_count = int(self._extract_number_text(soup, ['span._2_R_DZ', 'span[class*="_2_R_DZ"]']) or 120)
+
+        img = soup.find('img', class_=re.compile(r'_396cs4|_2r_T1I|CXW8mj'))
+        image = img.get('src', '') if img else 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'
+
+        return {
+            'name': name.strip(),
+            'price': price,
+            'rating': rating,
+            'total_reviews': review_count,
+            'rating_count': review_count,
+            'image_url': image,
+            'retailer': 'Flipkart',
+            'url': url,
+            'overall_summary': None,
+            'availability': 'In Stock',
+            'category': 'Electronics',
+        }
+
+    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+        resp = _request_with_retry(self.session, url)
+        if not resp or resp.status_code != 200:
+            return _generate_mock_reviews(min(max_reviews, 15), product_name)
+
+        soup = BeautifulSoup(resp.content, 'lxml')
         reviews = []
-        for i in range(min(count, len(mock_reviews) * 10)):
-            review = mock_reviews[i % len(mock_reviews)].copy()
-            review['date'] = f"Reviewed in India on {random.randint(1, 28)} {random.choice(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'])} 2024"
-            review['helpful_count'] = random.randint(0, 50)
-            review['verified'] = random.choice([True, True, True, False])  # 75% verified
-            reviews.append(review)
-        
-        return reviews
-    
-    def _generate_ai_reviews(self, gemini, product_name: str, count: int) -> List[Dict]:
-        """Generate realistic reviews using Gemini AI"""
-        # Limit AI generation to 25 reviews maximum to save API costs
-        count = min(count, 25)
-        
-        try:
-            prompt = f"""Generate {count} realistic product reviews for "{product_name}". 
-Make them sound like actual customer reviews from Amazon India with a mix of positive, neutral, and negative feedback.
+        review_cards = soup.find_all('div', class_=re.compile(r'_16PBlm|_27M-vq|col\s+col-12-12'))
+        for card in review_cards:
+            if len(reviews) >= max_reviews:
+                break
+            text_el = card.find('div', class_=re.compile(r't-ZTKy|qwjWbk'))
+            if not text_el:
+                continue
+            text = _clean_text(text_el.get_text(separator=' ', strip=True))
+            if len(text) < 8:
+                continue
 
-Return ONLY a valid JSON array with this structure:
-[
-  {{
-    "rating": <1-5>,
-    "title": "<short review title>",
-    "text": "<detailed review text in 2-4 sentences>",
-    "author": "<Indian first name with last initial>"
-  }}
-]
+            star_el = card.find('div', class_=re.compile(r'_3LWZlK|_1BLPMq'))
+            rating = _extract_number(star_el.get_text()) if star_el else 4.0
 
-Guidelines:
-- Mix of ratings: 60% positive (4-5 stars), 30% neutral (3 stars), 10% negative (1-2 stars)
-- Use realistic Indian names like: Rahul K., Priya S., Amit P., Sneha M., etc.
-- Mention specific product features, pros/cons
-- Vary review length and tone
-- Include common concerns: delivery, quality, value for money, build quality
-- Some reviews should mention: "Worth the money", "Good value", "Disappointed", "Exceeded expectations"
-"""
-            
-            response = gemini.model.generate_content(prompt)
-            response_text = response.text.strip()
-            
-            # Handle markdown-wrapped JSON
-            if '```json' in response_text:
-                import re
-                json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
-                if json_match:
-                    response_text = json_match.group(1).strip()
-            elif '```' in response_text:
-                response_text = response_text.replace('```', '').strip()
-            
-            # Parse JSON
-            reviews_data = json.loads(response_text)
-            
-            # Add metadata to reviews
-            months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
-            for review in reviews_data:
-                review['date'] = f"Reviewed in India on {random.randint(1, 28)} {random.choice(months)} 2024"
-                review['helpful_count'] = random.randint(0, 100)
-                review['verified'] = random.choice([True, True, True, False])
-            
-            print(f"✅ Generated {len(reviews_data)} AI-powered reviews")
-            return reviews_data
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ AI review generation failed - Invalid JSON: {e}")
-            print(f"   Raw response: {response.text[:200]}...")
-            raise
-        except Exception as e:
-            print(f"❌ AI review generation failed: {e}")
-            raise
+            title_el = card.find('p', class_=re.compile(r'_2-N8zT'))
+            title = title_el.get_text(strip=True) if title_el else ""
 
+            user_el = card.find('p', class_=re.compile(r'_2sc7ZR'))
+            user = user_el.get_text(strip=True) if user_el else "Flipkart Customer"
+
+            reviews.append({
+                'user': user,
+                'author': user,
+                'rating': rating,
+                'title': title,
+                'text': text,
+                'date': 'Verified Purchase',
+                'verified': True,
+                'source': 'real',
+            })
+
+        if reviews:
+            return reviews
+        return _generate_mock_reviews(min(max_reviews, 15), product_name)
+
+    def _extract_text(self, soup, selectors):
+        for s in selectors:
+            el = soup.select_one(s)
+            if el and el.get_text(strip=True):
+                return el.get_text(strip=True)
+        return None
+
+    def _extract_number_text(self, soup, selectors):
+        txt = self._extract_text(soup, selectors)
+        return _extract_number(txt) if txt else None
+
+    def _mock_product(self, url: str) -> Dict:
+        return {
+            'name': _product_name_from_url(url),
+            'price': 999.0,
+            'rating': 4.0,
+            'total_reviews': 100,
+            'rating_count': 100,
+            'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
+            'retailer': 'Flipkart',
+            'url': url,
+            'overall_summary': None,
+            'availability': 'In Stock',
+            'category': 'General',
+        }
+
+
+# ---------------------------------------------------------------------------
+# Multi-Retailer Scraper
+# ---------------------------------------------------------------------------
 
 class MultiRetailerScraper:
-    """Scraper that supports multiple retailers"""
-    
+    """Dispatches requests to the appropriate retailer scraper."""
+
     def __init__(self):
-        self.amazon_scraper = AmazonScraper()
-    
-    def detect_retailer(self, url: str) -> str:
-        """Detect retailer from URL"""
+        self.amazon = AmazonScraper()
+        self.flipkart = FlipkartScraper()
+
+    @staticmethod
+    def detect_retailer(url: str) -> str:
         domain = urlparse(url).netloc.lower()
-        
-        if 'amazon' in domain:
-            return 'Amazon'
-        elif 'flipkart' in domain:
-            return 'Flipkart'
-        elif 'myntra' in domain:
-            return 'Myntra'
-        elif 'ajio' in domain:
-            return 'Ajio'
-        else:
-            return 'Unknown'
-    
+        if any(d in domain for d in ('amazon', 'amzn', 'a.co')):
+            return 'amazon'
+        if 'flipkart' in domain:
+            return 'flipkart'
+        return 'unknown'
+
     def scrape_product(self, url: str) -> Dict:
-        """Scrape product based on retailer"""
-        retailer = self.detect_retailer(url)
-        
-        if retailer == 'Amazon':
-            return self.amazon_scraper.scrape_product(url)
-        else:
-            # For other retailers, use mock data for now
-            print(f"⚠️  {retailer} scraping not implemented yet, using mock data")
-            return self.amazon_scraper._generate_mock_product(url)
-    
-    def scrape_reviews(self, url: str, max_reviews: int = 100) -> List[Dict]:
-        """Scrape reviews based on retailer"""
-        retailer = self.detect_retailer(url)
-        
-        if retailer == 'Amazon':
-            return self.amazon_scraper.scrape_reviews(url, max_reviews)
-        else:
-            print(f"⚠️  {retailer} review scraping not implemented yet, using mock data")
-            return self.amazon_scraper._generate_mock_reviews(max_reviews)
+        ret = self.detect_retailer(url)
+        if ret == 'amazon':
+            return self.amazon.scrape_product(url)
+        if ret == 'flipkart':
+            return self.flipkart.scrape_product(url)
+        return self.amazon.scrape_product(url)
+
+    def scrape_reviews(self, url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+        ret = self.detect_retailer(url)
+        if ret == 'amazon':
+            return self.amazon.scrape_reviews(url, max_reviews, product_name)
+        if ret == 'flipkart':
+            return self.flipkart.scrape_reviews(url, max_reviews, product_name)
+        return self.amazon.scrape_reviews(url, max_reviews, product_name)
 
 
-# Convenience functions for backward compatibility
+def _product_name_from_url(url: str) -> str:
+    try:
+        path = urlparse(url).path
+        parts = [p for p in path.split('/') if p and not re.match(r'^(dp|gp|product|p|-p)$', p)]
+        for part in parts:
+            if '-' in part and len(part) > 8 and not re.match(r'^[A-Z0-9]{10}$', part):
+                name = re.sub(r'[/\\d]{5,}.*$', '', part).replace('-', ' ').title()
+                if name:
+                    return name
+    except Exception:
+        pass
+    return 'Product'
+
+
+def _generate_mock_reviews(count: int, product_name: str = None) -> List[Dict]:
+    pname = product_name or "Product"
+    templates = [
+        {"rating": 5.0, "title": "Exceeded expectations!", "text": f"This {pname} is fantastic. High quality and works as advertised.", "user": "Aarav M."},
+        {"rating": 4.0, "title": "Good value overall", "text": f"Really satisfied with {pname}. Minor delivery delay but item is solid.", "user": "Neha P."},
+        {"rating": 2.0, "title": "Disappointed with quality", "text": f"The {pname} did not meet expectations. Feels flimsy and average.", "user": "Rohan D."},
+        {"rating": 5.0, "title": "Highly recommended!", "text": f"Super comfortable and great finishing on {pname}. Worth every rupee.", "user": "Ananya K."},
+        {"rating": 3.0, "title": "Decent but has flaws", "text": f"Average experience with {pname}. It is okay for daily casual use.", "user": "Karan V."},
+    ]
+    out = []
+    for i in range(count):
+        t = templates[i % len(templates)].copy()
+        t['date'] = 'Recent Purchase'
+        t['verified'] = True
+        t['source'] = 'mock'
+        out.append(t)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Module Public API
+# ---------------------------------------------------------------------------
+
 def scrape_product_data(url: str) -> Dict:
-    """Scrape product data from URL"""
-    scraper = MultiRetailerScraper()
-    return scraper.scrape_product(url)
+    return MultiRetailerScraper().scrape_product(url)
 
 
-def scrape_product_reviews(url: str, max_reviews: int = 100) -> List[Dict]:
-    """Scrape product reviews from URL"""
-    scraper = MultiRetailerScraper()
-    return scraper.scrape_reviews(url, max_reviews)
-
+def scrape_product_reviews(url: str, max_reviews: int = 100, product_name: str = None) -> List[Dict]:
+    return MultiRetailerScraper().scrape_reviews(url, max_reviews, product_name)

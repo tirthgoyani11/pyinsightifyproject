@@ -129,7 +129,7 @@ async function loadProductsFromAPI() {
       
       // Transform API products to match UI format
       allProducts = response.products.map(p => ({
-        id: p.productId,
+        id: p.id || p.productId,
         name: p.name,
         category: p.category || 'Electronics',
         retailer: p.retailer || 'Amazon',
@@ -137,7 +137,7 @@ async function loadProductsFromAPI() {
         rating: p.rating || 0,
         reviews: p.reviewCount || p.totalReviews || 0,
         price: parseFloat(p.price) || 0,
-        image: p.imageUrl || `https://via.placeholder.com/300x200/4A69FF/ffffff?text=${encodeURIComponent(p.name.substring(0, 20))}`,
+        image: p.image || p.imageUrl || `https://via.placeholder.com/300x200/4A69FF/ffffff?text=${encodeURIComponent(p.name.substring(0, 20))}`,
         analyzedAt: p.analyzedAt
       }));
       

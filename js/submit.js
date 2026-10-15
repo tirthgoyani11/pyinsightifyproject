@@ -30,15 +30,24 @@ function setupFormSubmission() {
       return;
     }
     
-    if (!retailer) {
-      showNotification('Please select a retailer', 'error');
-      return;
+    let selectedRetailer = retailer;
+    if (!selectedRetailer) {
+      const lower = url.toLowerCase();
+      if (lower.includes('amazon') || lower.includes('amzn') || lower.includes('a.co')) {
+        selectedRetailer = 'Amazon';
+      } else if (lower.includes('flipkart')) {
+        selectedRetailer = 'Flipkart';
+      } else {
+        showNotification('Please select a retailer', 'error');
+        return;
+      }
+      document.getElementById('retailer').value = selectedRetailer;
     }
     
     // Start analysis
     await analyzeProduct({
       url,
-      retailer,
+      retailer: selectedRetailer,
       name: productName,
       category
     });
@@ -52,64 +61,123 @@ function autoDetectRetailer() {
   const urlInput = document.getElementById('productUrl');
   const retailerSelect = document.getElementById('retailer');
   
-  urlInput.addEventListener('blur', function() {
-    const url = this.value.toLowerCase();
-    
-    if (url.includes('amazon.')) {
+  const detect = (val) => {
+    if (!val) return;
+    const url = val.toLowerCase();
+    if (url.includes('amazon') || url.includes('amzn') || url.includes('a.co')) {
       retailerSelect.value = 'Amazon';
-    } else if (url.includes('flipkart.')) {
+    } else if (url.includes('flipkart')) {
       retailerSelect.value = 'Flipkart';
-    } else if (url.includes('walmart.')) {
+    } else if (url.includes('walmart')) {
       retailerSelect.value = 'Walmart';
-    } else if (url.includes('target.')) {
+    } else if (url.includes('target')) {
       retailerSelect.value = 'Target';
-    } else if (url.includes('bestbuy.')) {
+    } else if (url.includes('bestbuy')) {
       retailerSelect.value = 'BestBuy';
     }
+  };
+  
+  urlInput.addEventListener('blur', function() {
+    detect(this.value);
   });
+  urlInput.addEventListener('input', function() {
+    detect(this.value);
+  });
+  
+  // Check URL parameter if passed
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlParam = params.get('url');
+    if (urlParam) {
+      urlInput.value = urlParam;
+      detect(urlParam);
+    }
+  } catch (e) {}
 }
 
 /**
- * Analyze product
+ * Analyze product with retry and polling
  */
 async function analyzeProduct(productData) {
-  // Show loading overlay
+  const { url, retailer, name, category } = productData;
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const btn = document.getElementById('analyzeBtn');
+  const btnText = document.getElementById('analyzeBtnText');
+
+  // Show loading
   showLoadingOverlay();
-  
+  resetProgressSteps();
+  animateProgress();
+
   try {
+    updateStepText('step1', '⏳ Scraping product page...');
+    updateStepText('step2', '⏳ Collecting reviews...');
+
     // Call the real backend API
-    const response = await API.products.analyze(
-      productData.url,
-      productData.retailer,
-      productData.name,
-      productData.category
-    );
-    
-    if (response.success) {
-      const productId = response.productId || response.product.id;
-      
-      // Save to recent products
-      saveToRecentProducts({
-        id: productId,
-        name: response.product.name,
-        url: response.product.url,
-        retailer: response.product.retailer,
-        category: response.product.category,
-        analyzedAt: response.product.analyzedAt || new Date().toISOString()
-      });
-      
-      // Redirect to analysis page
-      showNotification('Analysis complete! Redirecting...', 'success');
-      setTimeout(() => {
-        window.location.href = `analysis.html?id=${productId}`;
-      }, 1500);
-    } else {
-      throw new Error(response.error || 'Analysis failed');
+    const response = await API.products.analyze(url, retailer, name, category);
+
+    if (!response || !response.success) {
+      throw new Error(response?.error || 'Analysis failed');
     }
+
+    // Already analyzed
+    if (response.message && response.message.includes('already analyzed')) {
+      updateStepText('step4', '✓ Already analyzed');
+      completeProgress();
+      const pid = response.productId || (response.product && response.product.id);
+      if (pid) {
+        saveToRecentProducts({
+          id: pid,
+          name: (response.product && response.product.name) || name || 'Analyzed Product',
+          url: url,
+          retailer: (response.product && response.product.retailer) || retailer,
+          category: (response.product && response.product.category) || category,
+          analyzedAt: new Date().toISOString()
+        });
+        showNotification('Product already analyzed! Redirecting...', 'success');
+        setTimeout(() => { window.location.href = `analysis.html?id=${pid}`; }, 1000);
+      }
+      return;
+    }
+
+    const productId = response.productId;
+    if (!productId) {
+      throw new Error('No product ID returned from analysis');
+    }
+
+    updateStepText('step2', '✓ Reviews collected');
+    updateStepText('step3', '⏳ Analyzing sentiment...');
+
+    // Poll for completed analysis
+    const completed = await pollForProduct(productId, url);
+    if (!completed) {
+      throw new Error('Analysis timed out. The backend is still processing — please try again in a moment.');
+    }
+
+    updateStepText('step3', '✓ Sentiment analyzed');
+    updateStepText('step4', '✓ Insights generated');
+    completeProgress();
+
+    // Save to recent
+    saveToRecentProducts({
+      id: productId,
+      name: completed.name || name || 'Analyzed Product',
+      url: url,
+      retailer: completed.retailer || retailer,
+      category: completed.category || category,
+      analyzedAt: new Date().toISOString()
+    });
+
+    showNotification('Analysis complete! Redirecting...', 'success');
+    setTimeout(() => {
+      window.location.href = `analysis.html?id=${productId}`;
+    }, 1500);
+
   } catch (error) {
     hideLoadingOverlay();
     showNotification(`Analysis failed: ${error.message}`, 'error');
     console.error('Analysis error:', error);
+    resetProgressSteps();
   }
 }
 
@@ -314,4 +382,99 @@ function showNotification(message, type = 'info') {
   } else {
     alert(message);
   }
+}
+
+// ===== ANALYSIS PROGRESS HELPERS =====
+
+/**
+ * Poll /api/products/recent until the product appears
+ */
+async function pollForProduct(productId, url) {
+  const maxPolls = 30;
+  const interval = 3000;
+
+  for (let i = 0; i < maxPolls; i++) {
+    try {
+      const data = await API.products.getRecent(50);
+      if (data && data.success && data.products) {
+        const found = data.products.find(p => p.product_id === productId || p.id === productId);
+        if (found) {
+          return found;
+        }
+      }
+    } catch (e) {
+      // Ignore polling errors, keep trying
+    }
+    const dots = '.'.repeat((i % 3) + 1);
+    updateStepText('step4', `⏳ Still processing${dots}`);
+    await new Promise(r => setTimeout(r, interval));
+  }
+  return null;
+}
+
+/**
+ * Update a specific step's text
+ */
+function updateStepText(stepId, text) {
+  const el = document.getElementById(stepId);
+  if (el) {
+    el.textContent = text;
+    if (text.startsWith('✓')) {
+      el.classList.add('completed');
+    }
+  }
+}
+
+/**
+ * Reset all progress steps
+ */
+function resetProgressSteps() {
+  const steps = [
+    { id: 'step1', default: '⏳ Scraping product page...' },
+    { id: 'step2', default: '⏳ Collecting reviews...' },
+    { id: 'step3', default: '⏳ Analyzing sentiment...' },
+    { id: 'step4', default: '⏳ Generating insights...' },
+  ];
+  steps.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (el) {
+      el.textContent = s.default;
+      el.classList.remove('completed');
+    }
+  });
+}
+
+/**
+ * Mark all steps as completed
+ */
+function completeProgress() {
+  const steps = ['step1', 'step2', 'step3', 'step4'];
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = el.textContent.replace('⏳ ', '✓ ');
+      el.classList.add('completed');
+    }
+  });
+}
+
+/**
+ * Animate progress steps sequentially
+ */
+function animateProgress() {
+  const steps = [
+    { id: 'step1', delay: 600 },
+    { id: 'step2', delay: 1400 },
+    { id: 'step3', delay: 2000 },
+    { id: 'step4', delay: 2800 },
+  ];
+
+  steps.forEach(({ id, delay }) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('completed')) {
+        el.classList.add('active');
+      }
+    }, delay);
+  });
 }

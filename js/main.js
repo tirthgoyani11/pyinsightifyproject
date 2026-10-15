@@ -98,30 +98,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
-  // ===== FORM VALIDATION =====
+  // ===== FORM VALIDATION & REAL ANALYSIS =====
   const analyzeForm = document.getElementById('analyzeForm');
   if (analyzeForm) {
-    analyzeForm.addEventListener('submit', (e) => {
+    analyzeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const urlInput = document.getElementById('productUrl');
-      const url = urlInput.value.trim();
+      const submitBtn = analyzeForm.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Analyse Now ✨';
+      const url = urlInput ? urlInput.value.trim() : '';
       
       if (!url) {
         showNotification('Please enter a product URL', 'error');
         return;
       }
       
-      // Basic URL validation
       try {
         new URL(url);
-        // Simulate navigation to analysis page
-        showNotification('Analyzing product...', 'success');
-        setTimeout(() => {
-          window.location.href = 'analysis.html';
-        }, 1500);
       } catch (error) {
         showNotification('Please enter a valid URL', 'error');
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Scraping & Analyzing...';
+      }
+      showNotification('Analyzing product reviews with NLP... Please wait.', 'info');
+
+      try {
+        if (typeof API !== 'undefined' && API.products && API.products.analyze) {
+          const response = await API.products.analyze(url);
+          if (response && response.success) {
+            const productId = response.productId || (response.product && response.product.id);
+            try {
+              const recent = JSON.parse(localStorage.getItem('recentProducts') || '[]');
+              const newProduct = {
+                id: productId,
+                name: response.product ? response.product.name : 'Analyzed Product',
+                url: url,
+                retailer: response.product ? response.product.retailer : 'Amazon',
+                analyzedAt: new Date().toISOString()
+              };
+              const filtered = recent.filter(p => p.id !== productId);
+              filtered.unshift(newProduct);
+              localStorage.setItem('recentProducts', JSON.stringify(filtered.slice(0, 10)));
+            } catch (err) {
+              console.warn('Could not save recent product:', err);
+            }
+
+            showNotification('Analysis complete! Redirecting...', 'success');
+            setTimeout(() => {
+              window.location.href = `analysis.html?id=${productId}`;
+            }, 800);
+            return;
+          } else {
+            throw new Error((response && response.error) || 'Analysis failed');
+          }
+        } else {
+          window.location.href = `submit.html?url=${encodeURIComponent(url)}`;
+        }
+      } catch (err) {
+        console.error('Analysis error:', err);
+        showNotification(`Analysis failed: ${err.message}`, 'error');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
       }
     });
   }

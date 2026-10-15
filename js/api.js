@@ -7,7 +7,7 @@ const API = {
   
   // Base configuration
   config: {
-    baseURL: 'http://localhost:5000/api', // Backend API URL
+    baseURL: '/api', // Relative — same origin as the Flask server
     useMockData: false, // Set to true to use mock data
     mockDelay: 800,
     enableLogging: true,
@@ -21,27 +21,61 @@ const API = {
    */
   async _fetch(endpoint, options = {}) {
     const url = `${this.config.baseURL}${endpoint}`;
-    
-    try {
-      this._log(options.method || 'GET', endpoint, options.body);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        ...options
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+    const TIMEOUT_MS = 90_000;
+    const MAX_RETRIES = 2;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      try {
+        this._log(options.method || 'GET', endpoint, options.body);
+
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+          },
+          ...options
+        });
+
+        clearTimeout(timer);
+
+        // 502/503/504 are retryable
+        if (response.status >= 500 && attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+
+        // Handle non-JSON responses (HTML pages)
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await response.text();
+          return { success: true, data: text, isHTML: true };
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        return data;
+      } catch (error) {
+        clearTimeout(timer);
+
+        if (error.name === 'AbortError') {
+          return this._handleError(new Error('Request timed out (90s). The analysis is still running — please try again shortly.'), endpoint);
+        }
+
+        if (attempt < MAX_RETRIES && (error.name === 'TypeError' || /5\d\d/.test(error.message))) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+
+        return this._handleError(error, endpoint);
       }
-      
-      return data;
-    } catch (error) {
-      return this._handleError(error, endpoint);
     }
   },
   
@@ -359,7 +393,7 @@ const API = {
           specs: { quality: 85, value: 80, durability: 82, features: 88, performance: 90 },
           common_terms: {
             positive_terms: ['excellent', 'fast', 'beautiful', 'amazing', 'smooth', 'premium', 'love', 'great value'],
-            negative_terms: ['expensive', 'bloatware', 'disappointing', 'overpriced', 'warm', 'poor']
+            negative_terms: ['expensive', 'disappointing', 'overpriced', 'warm', 'poor']
           },
           reviews: { total: 100, rating: 4.5, samples: { positive: [], negative: [] } }
         });

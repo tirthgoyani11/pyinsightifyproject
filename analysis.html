@@ -30,45 +30,6 @@
           <li><a href="compare.html">Compare</a></li>
         </ul>
         
-        <!-- Auth Buttons (shown when not logged in) -->
-        <div id="authButtons" style="display: flex; gap: var(--space-3); align-items: center;">
-          <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
-          <a href="register.html" class="btn btn-primary btn-sm">Sign Up</a>
-        </div>
-        
-        <!-- User Menu (shown when logged in) -->
-        <div id="userMenu" style="display: none; position: relative;">
-          <button class="user-menu-trigger" id="userMenuTrigger" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: none; background: transparent; cursor: pointer; border-radius: var(--radius-md); transition: background 0.2s;">
-            <div id="userAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;">U</div>
-            <span id="userDisplay" style="font-weight: 500; color: var(--color-text);">User</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
-          
-          <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: var(--space-2); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
-            <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border);">
-              <div style="font-weight: 600; color: var(--color-text);" id="dropdownUsername">User</div>
-              <div style="font-size: var(--text-sm); color: var(--color-text-secondary);" id="dropdownEmail">user@example.com</div>
-            </div>
-            <a href="profile.html" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-text); text-decoration: none; transition: background 0.2s;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              Profile
-            </a>
-            <button id="logoutBtn" style="width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); color: var(--color-danger); background: none; border: none; border-top: 1px solid var(--color-border); cursor: pointer; transition: background 0.2s; text-align: left;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              Logout
-            </button>
-          </div>
-        </div>
-        
         <button class="mobile-menu-toggle" aria-label="Toggle menu">
           <span></span>
           <span></span>
@@ -93,16 +54,16 @@
         
         <div class="product-info">
           <h1 class="product-title" id="productTitle">
-            Google Pixel 9 Pro - 128GB, Obsidian Black
+            Loading Product Analysis...
           </h1>
           <div class="product-meta">
-            <span class="retailer-badge">
+            <span class="retailer-badge" id="productRetailerBadge">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M21 2H3v2l8 9v5H7v2h10v-2h-4v-5l8-9V2z"/>
               </svg>
               Sold on Amazon
             </span>
-            <a href="#" class="product-link" target="_blank" rel="noopener">
+            <a href="#" class="product-link" id="productLink" target="_blank" rel="noopener">
               View Original Product →
             </a>
           </div>
@@ -122,7 +83,11 @@
             <div class="score-value" id="insightScore">87</div>
             <div class="score-label">Insight Score</div>
             <div class="score-description">
-              Based on 2,847 reviews
+              Based on <span id="totalReviews">0</span> verified customer reviews
+            </div>
+            <div class="engine-badge" id="engineBadge" hidden>
+              <span class="engine-dot"></span>
+              <span id="engineLabel">Analyzing…</span>
             </div>
           </div>
         </div>
@@ -155,6 +120,87 @@
         
       </div>
       
+      <!-- Executive Review Synthesis (BART-Summarizer) -->
+      <div class="card nlp-summary-card" style="margin-bottom: var(--space-6); border-left: 4px solid var(--color-primary); background: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.3rem;">📋</span>
+            <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Executive Review Synthesis</h3>
+          </div>
+          <span class="badge" style="background: var(--color-primary-light); color: var(--color-primary); border: 1px solid rgba(0, 102, 204, 0.2); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;">
+            BART-Summarizer
+          </span>
+        </div>
+        <p class="ai-summary-text" id="aiSummaryText" style="line-height: 1.6; color: var(--color-text-secondary); margin: 0; font-size: 0.95rem;">
+          Analyzing verified customer reviews and generating neural synthesis...
+        </p>
+      </div>
+
+      <!-- Aspect Dimension Evaluation (Category-Specific Multi-Aspect Scoring) -->
+      <div class="card specs-card" style="margin-bottom: var(--space-6); background: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.3rem;">📊</span>
+            <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Aspect Dimension Evaluation</h3>
+            <span id="detectedCategoryBadge" class="badge" style="background: var(--color-primary-light); color: var(--color-primary); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; display: none;"></span>
+          </div>
+          <span class="badge" style="background: var(--color-positive-bg); color: var(--color-positive-dark); border: 1px solid rgba(52, 199, 89, 0.25); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;">
+            Domain-Specific Aspects
+          </span>
+        </div>
+        <div class="specs-grid" id="specsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4);">
+          <p class="text-secondary" style="padding: var(--space-4); text-align: center; grid-column: 1 / -1;">
+            Extracting category-specific aspect dimensions...
+          </p>
+        </div>
+      </div>
+
+      <!-- Purchase Decision Guide (BART Recommendation) -->
+      <div class="card buyer-guide-card" id="buyerGuideCard" style="margin-bottom: var(--space-6); background: #ffffff; border-top: 3px solid var(--color-primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.3rem;">🎯</span>
+            <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Purchase Decision Guide</h3>
+          </div>
+          <span class="badge" style="background: var(--color-primary-light); color: var(--color-primary); border: 1px solid rgba(0, 102, 204, 0.2); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;">
+            BART Recommendation
+          </span>
+        </div>
+        
+        <div class="buyer-guide-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
+          <div class="guide-box best-for-box" style="background: rgba(52, 199, 89, 0.04); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 14px; padding: 14px 16px;">
+            <h4 style="margin: 0 0 8px 0; color: #166534; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+              <span>✅</span> Best For
+            </h4>
+            <ul id="bestForList" style="margin: 0; padding-left: 20px; font-size: 0.88rem; color: #14532d; line-height: 1.5;">
+              <li>Analyzing verified usage patterns...</li>
+            </ul>
+          </div>
+          
+          <div class="guide-box avoid-if-box" style="background: rgba(255, 149, 0, 0.04); border: 1px solid rgba(255, 149, 0, 0.2); border-radius: 14px; padding: 14px 16px;">
+            <h4 style="margin: 0 0 8px 0; color: #92400e; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+              <span>⚠️</span> Consider Alternatives If
+            </h4>
+            <ul id="avoidIfList" style="margin: 0; padding-left: 20px; font-size: 0.88rem; color: #78350f; line-height: 1.5;">
+              <li>Analyzing reported limitations...</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="verdictBanner" style="background: #f8fafc; border-left: 4px solid var(--color-primary); border-radius: 6px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 10px;">
+          <span style="font-size: 1.2rem; line-height: 1;">⚖️</span>
+          <div style="flex: 1;">
+            <strong style="font-size: 0.88rem; color: #1e293b; display: block; margin-bottom: 2px;">Neural Model Verdict:</strong>
+            <p id="verdictText" style="margin: 0; font-size: 0.92rem; color: var(--color-text-secondary); line-height: 1.5;">
+              Generating neural purchasing recommendation...
+            </p>
+            <div id="fitFeedbackRow" style="margin-top: 6px; font-size: 0.85rem; font-weight: 500; color: var(--color-primary); display: none;">
+              <span>📏 Sizing / Fit Advice: </span><span id="fitFeedbackText"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Key Takeaways -->
       <div class="takeaways-section">
         <div class="takeaways-grid">
@@ -165,26 +211,9 @@
               <span class="takeaway-icon">👍</span>
               <h3>What People Love</h3>
             </div>
-            <ul class="takeaway-list">
+            <ul class="takeaway-list" id="positiveTakeawaysList">
               <li>
-                <strong>Excellent Battery Life</strong>
-                <span class="mention-count">Mentioned 892 times</span>
-              </li>
-              <li>
-                <strong>Vibrant Display</strong>
-                <span class="mention-count">Mentioned 756 times</span>
-              </li>
-              <li>
-                <strong>Premium Build Quality</strong>
-                <span class="mention-count">Mentioned 623 times</span>
-              </li>
-              <li>
-                <strong>Fast Performance</strong>
-                <span class="mention-count">Mentioned 581 times</span>
-              </li>
-              <li>
-                <strong>Clean Software Experience</strong>
-                <span class="mention-count">Mentioned 445 times</span>
+                <span class="text-secondary">Synthesizing verified customer praises...</span>
               </li>
             </ul>
           </div>
@@ -195,26 +224,9 @@
               <span class="takeaway-icon">👎</span>
               <h3>What People Complain About</h3>
             </div>
-            <ul class="takeaway-list">
+            <ul class="takeaway-list" id="negativeTakeawaysList">
               <li>
-                <strong>Too Much Bloatware</strong>
-                <span class="mention-count">Mentioned 234 times</span>
-              </li>
-              <li>
-                <strong>Poor Camera in Low Light</strong>
-                <span class="mention-count">Mentioned 198 times</span>
-              </li>
-              <li>
-                <strong>Expensive Price Point</strong>
-                <span class="mention-count">Mentioned 167 times</span>
-              </li>
-              <li>
-                <strong>No Headphone Jack</strong>
-                <span class="mention-count">Mentioned 143 times</span>
-              </li>
-              <li>
-                <strong>Gets Warm During Gaming</strong>
-                <span class="mention-count">Mentioned 89 times</span>
+                <span class="text-secondary">Identifying frequent customer criticisms...</span>
               </li>
             </ul>
           </div>
@@ -258,111 +270,25 @@
             <h3 class="mb-6">Sample Reviews by Sentiment</h3>
             
             <div class="review-comparison">
-              
               <!-- Positive Reviews Column -->
-              <div class="review-column">
+              <div class="review-column positive-review-column">
                 <div class="column-header positive-header">
-                  <span class="badge badge-positive">Positive</span>
+                  <span class="badge badge-positive">Positive Reviews</span>
                 </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">Sarah M.</span>
-                    <span class="review-date">2 weeks ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐⭐⭐⭐</div>
-                  <p class="review-text">
-                    "Absolutely love this phone! The battery lasts me two full days with moderate use. 
-                    The display is stunning and the camera takes incredible photos in daylight."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 124 found helpful</span>
-                  </div>
-                </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">James K.</span>
-                    <span class="review-date">1 month ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐⭐⭐⭐</div>
-                  <p class="review-text">
-                    "Best Android phone I've owned. Fast, smooth, and the build quality feels premium. 
-                    Worth every penny."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 89 found helpful</span>
-                  </div>
-                </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">Emily R.</span>
-                    <span class="review-date">3 weeks ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐⭐⭐</div>
-                  <p class="review-text">
-                    "Great phone overall. The screen is beautiful and it handles multitasking like a champ. 
-                    Only minor gripe is it gets a bit warm during intensive tasks."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 67 found helpful</span>
-                  </div>
+                <div id="samplePositiveReviews">
+                  <p class="text-secondary" style="padding: var(--space-4); text-align: center;">Loading verified customer reviews...</p>
                 </div>
               </div>
-              
+
               <!-- Negative Reviews Column -->
-              <div class="review-column">
+              <div class="review-column negative-review-column">
                 <div class="column-header negative-header">
-                  <span class="badge badge-negative">Negative</span>
+                  <span class="badge badge-negative">Negative Reviews</span>
                 </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">Mike T.</span>
-                    <span class="review-date">1 week ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐</div>
-                  <p class="review-text">
-                    "Disappointed with the camera performance in low light. Photos come out grainy 
-                    and lack detail. Expected better at this price point."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 43 found helpful</span>
-                  </div>
-                </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">Lisa P.</span>
-                    <span class="review-date">2 weeks ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐</div>
-                  <p class="review-text">
-                    "Too much pre-installed bloatware that I can't remove. Also, no headphone jack 
-                    is a deal breaker for me."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 38 found helpful</span>
-                  </div>
-                </div>
-                
-                <div class="card review-item">
-                  <div class="review-header">
-                    <span class="review-author">David L.</span>
-                    <span class="review-date">3 weeks ago</span>
-                  </div>
-                  <div class="review-rating">⭐⭐⭐</div>
-                  <p class="review-text">
-                    "It's okay but overpriced. There are cheaper alternatives that offer similar features. 
-                    Build quality is good though."
-                  </p>
-                  <div class="review-footer">
-                    <span class="helpful-count">👍 29 found helpful</span>
-                  </div>
+                <div id="sampleNegativeReviews">
+                  <p class="text-secondary" style="padding: var(--space-4); text-align: center;">Loading verified customer reviews...</p>
                 </div>
               </div>
-              
             </div>
             
             <!-- Word Clouds Section -->
@@ -374,14 +300,7 @@
                     <span class="badge badge-positive">Positive Terms</span>
                   </h4>
                   <div class="word-cloud positive-cloud" id="positiveWordCloud">
-                    <!-- Word cloud will be generated by JS -->
-                    <span class="cloud-word" style="font-size: 2rem; color: var(--color-positive);">excellent</span>
-                    <span class="cloud-word" style="font-size: 1.8rem; color: var(--color-positive);">fast</span>
-                    <span class="cloud-word" style="font-size: 1.5rem; color: var(--color-positive);">beautiful</span>
-                    <span class="cloud-word" style="font-size: 2.2rem; color: var(--color-positive);">amazing</span>
-                    <span class="cloud-word" style="font-size: 1.6rem; color: var(--color-positive);">smooth</span>
-                    <span class="cloud-word" style="font-size: 1.4rem; color: var(--color-positive);">premium</span>
-                    <span class="cloud-word" style="font-size: 1.7rem; color: var(--color-positive);">love</span>
+                    <p class="text-secondary" style="text-align: center; padding: var(--space-2);">Analyzing recurring positive terms...</p>
                   </div>
                 </div>
                 
@@ -390,13 +309,7 @@
                     <span class="badge badge-negative">Negative Terms</span>
                   </h4>
                   <div class="word-cloud negative-cloud" id="negativeWordCloud">
-                    <!-- Word cloud will be generated by JS -->
-                    <span class="cloud-word" style="font-size: 1.8rem; color: var(--color-negative);">expensive</span>
-                    <span class="cloud-word" style="font-size: 1.6rem; color: var(--color-negative);">bloatware</span>
-                    <span class="cloud-word" style="font-size: 1.5rem; color: var(--color-negative);">disappointing</span>
-                    <span class="cloud-word" style="font-size: 1.9rem; color: var(--color-negative);">overpriced</span>
-                    <span class="cloud-word" style="font-size: 1.4rem; color: var(--color-negative);">warm</span>
-                    <span class="cloud-word" style="font-size: 1.7rem; color: var(--color-negative);">poor</span>
+                    <p class="text-secondary" style="text-align: center; padding: var(--space-2);">Analyzing recurring complaint terms...</p>
                   </div>
                 </div>
               </div>
@@ -410,119 +323,10 @@
           <div class="topic-analysis">
             <h3 class="mb-6">Sentiment by Feature</h3>
             
-            <div class="topic-list">
-              
-              <!-- Camera Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>📷 Camera</h4>
-                  <span class="badge badge-positive">85% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill positive" style="width: 85%"></div>
-                </div>
-                <p class="topic-summary">
-                  Most users praise daylight photography but note issues with low-light performance. 
-                  Video recording quality is highly rated.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 1,245 positive</span>
-                  <span>👎 218 negative</span>
-                </div>
-              </div>
-              
-              <!-- Battery Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>🔋 Battery</h4>
-                  <span class="badge badge-positive">92% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill positive" style="width: 92%"></div>
-                </div>
-                <p class="topic-summary">
-                  Outstanding battery life with most users reporting 1.5-2 days of usage. 
-                  Fast charging is appreciated.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 1,789 positive</span>
-                  <span>👎 156 negative</span>
-                </div>
-              </div>
-              
-              <!-- Display Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>🖥️ Display</h4>
-                  <span class="badge badge-positive">88% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill positive" style="width: 88%"></div>
-                </div>
-                <p class="topic-summary">
-                  Vibrant colors and high brightness levels. 120Hz refresh rate is smooth and responsive.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 1,523 positive</span>
-                  <span>👎 208 negative</span>
-                </div>
-              </div>
-              
-              <!-- Software Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>⚙️ Software</h4>
-                  <span class="badge badge-neutral">55% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill neutral" style="width: 55%"></div>
-                </div>
-                <p class="topic-summary">
-                  Mixed reactions. Clean UI praised, but bloatware and pre-installed apps are criticized. 
-                  Update frequency is appreciated.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 892 positive</span>
-                  <span>👎 731 negative</span>
-                </div>
-              </div>
-              
-              <!-- Performance Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>⚡ Performance</h4>
-                  <span class="badge badge-positive">90% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill positive" style="width: 90%"></div>
-                </div>
-                <p class="topic-summary">
-                  Fast and responsive for daily tasks and gaming. Minor heating issues during intensive use.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 1,654 positive</span>
-                  <span>👎 184 negative</span>
-                </div>
-              </div>
-              
-              <!-- Build Quality Topic -->
-              <div class="card topic-item">
-                <div class="topic-header">
-                  <h4>🛠️ Build Quality</h4>
-                  <span class="badge badge-positive">87% Positive</span>
-                </div>
-                <div class="topic-bar">
-                  <div class="topic-bar-fill positive" style="width: 87%"></div>
-                </div>
-                <p class="topic-summary">
-                  Premium feel with glass and metal construction. Some concerns about durability without a case.
-                </p>
-                <div class="topic-stats">
-                  <span>👍 1,432 positive</span>
-                  <span>👎 214 negative</span>
-                </div>
-              </div>
-              
+            <div class="topic-list" id="topicList">
+              <p class="text-secondary text-center" style="padding: var(--space-8);">
+                Loading topic breakdown from verified customer reviews...
+              </p>
             </div>
           </div>
         </div>
@@ -658,67 +462,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="js/main.js?v=2.0"></script>
   <script src="js/api.js?v=2.0"></script>
-  <script src="js/auth.js"></script>
   <script src="js/analysis.js?v=2.0"></script>
-  <script>
-    // Initialize authentication UI
-    document.addEventListener('DOMContentLoaded', async () => {
-      await Auth.initializeAuthUI();
-      
-      const user = await Auth.getCurrentUser();
-      if (user) {
-        const dropdownUsername = document.getElementById('dropdownUsername');
-        const dropdownEmail = document.getElementById('dropdownEmail');
-        if (dropdownUsername) dropdownUsername.textContent = user.username;
-        if (dropdownEmail) dropdownEmail.textContent = user.email;
-      }
-      
-      const userMenuTrigger = document.getElementById('userMenuTrigger');
-      const userDropdown = document.getElementById('userDropdown');
-      
-      if (userMenuTrigger && userDropdown) {
-        userMenuTrigger.addEventListener('click', (e) => {
-          e.stopPropagation();
-          userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
-        });
-        
-        document.addEventListener('click', (e) => {
-          if (!userDropdown.contains(e.target) && !userMenuTrigger.contains(e.target)) {
-            userDropdown.style.display = 'none';
-          }
-        });
-      }
-      
-      const logoutBtn = document.getElementById('logoutBtn');
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-          const result = await Auth.logout();
-          if (result.success) {
-            window.location.href = 'index.html';
-          }
-        });
-      }
-      
-      const userMenuTriggerEl = document.getElementById('userMenuTrigger');
-      if (userMenuTriggerEl) {
-        userMenuTriggerEl.addEventListener('mouseenter', () => {
-          userMenuTriggerEl.style.background = 'var(--color-gray-100)';
-        });
-        userMenuTriggerEl.addEventListener('mouseleave', () => {
-          userMenuTriggerEl.style.background = 'transparent';
-        });
-      }
-      
-      const dropdownLinks = document.querySelectorAll('.user-dropdown a, .user-dropdown button');
-      dropdownLinks.forEach(link => {
-        link.addEventListener('mouseenter', () => {
-          link.style.background = 'var(--color-gray-50)';
-        });
-        link.addEventListener('mouseleave', () => {
-          link.style.background = 'transparent';
-        });
-      });
-    });
-  </script>
 </body>
 </html>
